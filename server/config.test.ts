@@ -69,4 +69,14 @@ describe('delivery mode configuration', () => {
     const r = loadLeadConfig({ EMAIL_PROVIDER_TIMEOUT_MS: '5' })
     expect(r.ok && r.config.providerTimeoutMs).toBe(10_000)
   })
+
+  it('refuses provider timeouts that would outlast the browser timeout (falls back to 10 s)', () => {
+    const at = (v: string) => {
+      const r = loadLeadConfig({ EMAIL_PROVIDER_TIMEOUT_MS: v })
+      return r.ok ? r.config.providerTimeoutMs : null
+    }
+    expect(at('15000')).toBe(15_000)
+    expect(at('15001')).toBe(10_000)
+    expect(at('30000')).toBe(10_000)
+  })
 })

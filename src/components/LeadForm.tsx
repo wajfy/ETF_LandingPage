@@ -3,7 +3,9 @@ import { LeadFunnel, type LeadSelection } from '../analytics/leadFunnel'
 import { useSeenOnce, useTracker } from '../analytics/hooks'
 import { lead as copy } from '../content/cs'
 import { newRequestId, submitLead, type DeliveryMode, type LeadErrorCode } from '../lead/client'
-import { isValidEmail, normalizeEmail } from '../lead/validation'
+import { confirmationCopy } from '../lead/confirmationCopy'
+import { shouldRestoreFocus } from '../lead/focus'
+import { HONEYPOT_FIELD, isValidEmail, normalizeEmail } from '../lead/validation'
 
 export type LeadPosition = 'inline' | 'repeat'
 
@@ -46,6 +48,9 @@ export function LeadForm(props: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   /** Synchronous in-flight guard: React state updates too late to stop a fast double click. */
   const inFlight = useRef(false)
+  const formElRef = useRef<HTMLFormElement>(null)
+  /** Set when a failed attempt should hand focus back to the email field (see lead/focus.ts). */
+  const refocusAfterError = useRef(false)
 
   const isOwnSuccess = sent?.from === position && !reopened
   const sentElsewhere = sent !== null && sent.from !== position
@@ -53,6 +58,14 @@ export function LeadForm(props: Props) {
   useEffect(() => {
     if (isOwnSuccess) confirmationRef.current?.focus()
   }, [isOwnSuccess])
+
+  // After a failed attempt the (re-enabled) field gets focus back; the error is its description.
+  useEffect(() => {
+    if (status.kind === 'error' && refocusAfterError.current) {
+      refocusAfterError.current = false
+      inputRef.current?.focus()
+    }
+  }, [status])
 
   // Funnel events (README §6). The form counts as viewed only while the form itself is shown,
   // not the confirmation or the "already sent" line.
@@ -68,20 +81,23 @@ export function LeadForm(props: Props) {
   }
 
   if (sentElsewhere && !reopened) {
-    return <p className="text-[14px] leading-snug text-ink-2">{copy.alreadySent(sent.email)}</p>
+    return <p className="text-[14px] leading-snug text-ink-2">{confirmationCopy(sent.delivery).alreadySent(sent.email)}</p>
   }
 
   if (isOwnSuccess && sent) {
+    // Mock delivery (demo deployment / local dev): the same layout, but simulated-send wording.
+    const done = confirmationCopy(sent.delivery)
     return (
       <div role="status" className="border-l-2 border-accent pl-4">
         <h3 ref={confirmationRef} tabIndex={-1} className="text-xl font-semibold tracking-[-0.015em] outline-offset-4">
-          {copy.success.title}
+          {done.title}
         </h3>
         <p className="mt-1 text-[15px] leading-relaxed text-ink">
-          {copy.success.sentTo} <strong className="font-semibold break-all">{sent.email}</strong>.
+          {done.sentTo} <strong className="font-semibold break-all">{sent.email}</strong>
+          {done.sentToTail ? ` ${done.sentToTail}` : '.'}
         </p>
         <p className="mt-1 text-[14px] leading-relaxed text-ink-2">
-          {copy.success.notArrived}{' '}
+          {done.notArrived}{' '}
           <button
             type="button"
             className="font-medium text-accent underline underline-offset-2 hover:text-accent-strong"
@@ -93,14 +109,14 @@ export function LeadForm(props: Props) {
               requestAnimationFrame(() => inputRef.current?.focus())
             }}
           >
-            {copy.success.resend}
+            {done.resend}
           </button>
           .
         </p>
-        {sent.delivery === 'mock' && (
+        {done.notice && (
           <p className="mt-3 font-mono text-[11.5px] leading-snug text-ink-3">
             <span className="mr-1.5 bg-ink px-1 py-px text-white">MOCK</span>
-            {copy.success.mockNotice}
+            {done.notice}
           </p>
         )}
         {props.confirmationChecklist && (
@@ -150,7 +166,7 @@ export function LeadForm(props: Props) {
     if (!intent.current || intent.current.fingerprint !== fingerprint) intent.current = { requestId: newRequestId(), fingerprint }
     inFlight.current = true
     setStatus({ kind: 'submitting' })
-    const honeypot = (document.getElementById(`${id}-company`) as HTMLInputElement | null)?.value ?? ''
+    const honeypot = (document.getElementById(`${id}-${HONEYPOT_FIELD}`) as HTMLInputElement | null)?.value ?? ''
     const requestId = intent.current.requestId
     const selection: LeadSelection = { position, ticker: props.ticker, amountCzk: props.amountCzk, conversionRatePct: props.conversionRatePct }
     funnel.submitted(requestId, selection)
@@ -160,7 +176,7 @@ export function LeadForm(props: Props) {
       amountCzk: props.amountCzk,
       conversionRatePct: props.conversionRatePct,
       requestId,
-      company: honeypot,
+      [HONEYPOT_FIELD]: honeypot,
     })
     inFlight.current = false
     funnel.outcome(requestId, selection, outcome)
@@ -169,6 +185,8 @@ export function LeadForm(props: Props) {
       setReopened(false)
       props.onSent({ email: value, from: position, delivery: outcome.delivery })
     } else {
+      // Decided now, while the field is still disabled: focus is on <body> unless the visitor moved on.
+      refocusAfterError.current = shouldRestoreFocus(document.activeElement, document.body, formElRef.current)
       setStatus({ kind: 'error', code: outcome.code })
     }
   }
@@ -198,6 +216,7 @@ export function LeadForm(props: Props) {
       )}
 
       <form
+        ref={formElRef}
         noValidate
         aria-labelledby={`${id}-title`}
         aria-busy={submitting}
@@ -240,10 +259,23 @@ export function LeadForm(props: Props) {
           </button>
         </div>
 
-        {/* Honeypot: hidden from people and assistive tech; bots tend to fill every field. */}
+        {/* Honeypot: hidden from people and assistive tech; bots tend to fill every field. Its name and
+            label avoid anything browsers or password managers autofill (an autofilled honeypot would
+            give a real visitor a fake success), and the data-* attributes opt out of common managers. */}
         <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">
-          <label htmlFor={`${id}-company`}>Firma</label>
-          <input id={`${id}-company`} name="company" type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
+          <label htmlFor={`${id}-${HONEYPOT_FIELD}`}>Toto pole nevyplňujte</label>
+          <input
+            id={`${id}-${HONEYPOT_FIELD}`}
+            name={HONEYPOT_FIELD}
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            data-bwignore="true"
+            data-form-type="other"
+            defaultValue=""
+          />
         </div>
 
         {errorText && (

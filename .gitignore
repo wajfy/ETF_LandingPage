@@ -30,3 +30,6 @@ dist-ssr
 
 # Vitest local cache
 .vitest/
+
+# Vercel CLI: project link and local build output (`vercel build` writes .vercel/output).
+.vercel/

@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { isValidEmail, isOnRateStep, validateLeadBody } from './validation'
+import { HONEYPOT_FIELD, isValidEmail, isOnRateStep, validateLeadBody } from './validation'
 
 const tickers = ['IVV', 'VOO']
 const good = {
@@ -8,12 +10,61 @@ const good = {
   amountCzk: 100_000,
   conversionRatePct: 0.5,
   requestId: '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e',
-  company: '',
+  topic: '',
 }
 
 describe('email validation', () => {
-  it.each(['jana@example.cz', 'j.novak+etf@mail.example.com', '  jana@example.cz  '])('accepts %s', (e) => {
+  it.each([
+    'jana@example.cz',
+    'j.novak+etf@mail.example.com',
+    '  jana@example.cz  ',
+    'Jana.Novakova@Example.CZ',
+    "o'brien@example.co.uk",
+    'jana_n-2@sub-domain.example.cz',
+    'jana@example.xn--p1ai',
+    `${'a'.repeat(64)}@example.cz`,
+  ])('accepts %s', (e) => {
     expect(isValidEmail(e)).toBe(true)
+  })
+
+  // Plain address only: anything that could make the recipient ambiguous is rejected (M5 audit).
+  it.each([
+    '"Bank" <victim@example.cz>',
+    '"Bank"<victim@example.cz>',
+    'Bank <victim@example.cz>',
+    'x<victim@example.cz>',
+    '<victim@example.cz>',
+    'victim@example.cz>',
+    'a,b@example.cz',
+    'a@example.cz,b@example.cz',
+    'a@example.cz;b@example.cz',
+    'a;b@example.cz',
+    '"jana novak"@example.cz',
+    'jana(comment)@example.cz',
+    'jana@example.cz (Jana)',
+    'jana:x@example.cz',
+    'jana\\x@example.cz',
+    'jana@[192.168.1.1]',
+    'jana@192.168.1.1',
+    'jana@example.cz\nBcc: x@example.cz',
+    'jana@example.cz\r\nX: y',
+  ])('rejects the ambiguous form %j', (e) => {
+    expect(isValidEmail(e)).toBe(false)
+  })
+
+  it.each([
+    '.jana@example.cz',
+    'jana.@example.cz',
+    'ja..na@example.cz',
+    'jana@-example.cz',
+    'jana@example-.cz',
+    'jana@example..cz',
+    'jana@example.c',
+    'jana@example.123',
+    'jána@example.cz',
+    'jana@příklad.cz',
+  ])('rejects the malformed %j', (e) => {
+    expect(isValidEmail(e)).toBe(false)
   })
   it.each(['', 'jana', 'jana@', '@example.cz', 'jana@example', 'jana novak@example.cz', 'jana@@example.cz', `${'a'.repeat(65)}@example.cz`, `a@${'b'.repeat(250)}.cz`])(
     'rejects "%s"',
@@ -38,9 +89,27 @@ describe('request body validation', () => {
     [{ conversionRatePct: 1.05 }, 'invalid_input', 'conversionRatePct'],
     [{ conversionRatePct: 0.33 }, 'invalid_input', 'conversionRatePct'],
     [{ requestId: 'not-a-uuid' }, 'invalid_input', 'requestId'],
-    [{ company: 42 }, 'invalid_input', 'company'],
+    [{ email: '"Bank" <victim@example.cz>' }, 'invalid_email', 'email'],
+    [{ topic: 42 }, 'invalid_input', 'topic'],
   ])('rejects %j', (patch, code, field) => {
     expect(validateLeadBody({ ...good, ...patch }, tickers)).toEqual({ ok: false, code, field })
+  })
+
+  it('reads the honeypot from the renamed field; the old "company" key is ignored', () => {
+    expect(HONEYPOT_FIELD).toBe('topic')
+    const filled = validateLeadBody({ ...good, topic: 'bot text' }, tickers)
+    expect(filled.ok && filled.value.topic).toBe('bot text')
+    const legacy = validateLeadBody({ ...good, topic: undefined, company: 'ACME' }, tickers)
+    expect(legacy.ok && legacy.value.topic).toBe('')
+  })
+
+  it('the honeypot name avoids common autofill vocabulary (an autofilled honeypot = fake success for a person)', () => {
+    const autofillHints = /company|organi[sz]ation|firm|name|mail|tel|phone|address|street|city|zip|postal|country|url|website|user|pass|card|cc-|birth/i
+    expect(HONEYPOT_FIELD).not.toMatch(autofillHints)
+    const form = readFileSync(join(import.meta.dirname, '../components/LeadForm.tsx'), 'utf8')
+    expect(form).toContain('name={HONEYPOT_FIELD}')
+    expect(form).toContain('[HONEYPOT_FIELD]: honeypot')
+    expect(form).not.toMatch(/name="company"|company:/)
   })
 
   it('rejects non-object bodies', () => {

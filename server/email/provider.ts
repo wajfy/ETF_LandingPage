@@ -1,5 +1,5 @@
 /** Email provider adapter – the handler only knows this interface (mock or Resend behind it). */
-import type { DeliveryMode } from '../config'
+import type { DeliveryMode } from '../config.js'
 
 export interface OutgoingEmail {
   to: string

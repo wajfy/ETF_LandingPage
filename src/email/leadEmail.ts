@@ -6,12 +6,12 @@
  * a retried request reuses the provider idempotency key, which only deduplicates identical payloads.
  * The recipient address is never written into the body.
  */
-import { card, checklist, comparison as cmp, email as e, fundShortLabels, methodology as m } from '../content/cs'
-import { buildComparison } from '../domain/comparison'
-import { etfData, getFund } from '../domain/etfData'
-import { formatDateCz } from '../domain/format'
-import { methodologyRows, sourceLinks } from '../domain/methodology'
-import { buildResult } from '../domain/result'
+import { card, checklist, comparison as cmp, email as e, fundShortLabels, methodology as m } from '../content/cs.js'
+import { buildComparison } from '../domain/comparison.js'
+import { etfData, getFund } from '../domain/etfData.js'
+import { formatDateCz } from '../domain/format.js'
+import { methodologyRows, sourceLinks } from '../domain/methodology.js'
+import { buildResult } from '../domain/result.js'
 
 export interface LeadEmailInput {
   ticker: string

@@ -7,7 +7,7 @@
  * - Maps Resend error codes to outcomes; never logs or returns the recipient address.
  */
 import { Resend } from 'resend'
-import type { EmailProvider, OutgoingEmail, SendFailureKind, SendOptions, SendOutcome } from './provider'
+import type { EmailProvider, OutgoingEmail, SendFailureKind, SendOptions, SendOutcome } from './provider.js'
 
 /** The part of the SDK we use – lets tests inject a fake client. */
 export interface ResendLikeClient {

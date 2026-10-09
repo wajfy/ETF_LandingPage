@@ -1,11 +1,11 @@
 /**
  * Mock email provider – the default for local development.
  * - Never contacts Resend or any network service.
- * - Keeps only the last few rendered emails in memory (for the local preview at /api/dev/outbox),
+ * - Keeps only the last few rendered emails in memory (read only by the Vite dev server's local outbox, server/devApi.ts; not exposed by any deployment),
  *   with the recipient address masked. Nothing is written to disk; a restart clears everything.
  * - Mirrors the provider's idempotency: the same key returns the same id without a second "send".
  */
-import type { EmailProvider, OutgoingEmail, SendOptions, SendOutcome } from './provider'
+import type { EmailProvider, OutgoingEmail, SendOptions, SendOutcome } from './provider.js'
 
 export interface OutboxEntry {
   id: string

@@ -70,7 +70,11 @@ export function leadDevApi(): Plugin {
       const env = { ...loadEnv(server.config.mode, server.config.root, ''), NODE_ENV: 'development' }
       const getEndpoint = async (): Promise<Endpoint> => {
         const mod = (await server.ssrLoadModule('/server/lead/endpoint.ts')) as EndpointModule
-        if (!cached || cached.mod !== mod) cached = { mod, endpoint: mod.createLeadEndpoint(env) }
+        if (!cached || cached.mod !== mod) {
+          cached = { mod, endpoint: mod.createLeadEndpoint(env) }
+          // The outbox exists only here (Vite dev server), so only the dev server mentions it.
+          if (cached.endpoint.mockOutbox) server.config.logger.info('[lead] local dev server only: generated mock emails at /api/dev/outbox')
+        }
         return cached.endpoint
       }
 

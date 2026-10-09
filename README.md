@@ -1,6 +1,8 @@
 # ETF reality check — product brief
 
-**Status:** Wireframe phase **closed** 2026-10-09. **M1–M3 built locally** (section 10): hero and interactive result card; comparison of all 7 funds; explanatory chapters; checklist; methodology; both email forms with server-side delivery through Resend (mock by default, section 13); funnel analytics events through a provider-independent layer (**disabled**, nothing sent, section 6). Shared calculation and formatting; tests. Nothing is deployed and no real email has been sent. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html).
+**Status:** Wireframe phase **closed** 2026-10-09. **M1–M3 built locally** (section 10): hero and interactive result card; comparison of all 7 funds; explanatory chapters; checklist; methodology; both email forms with server-side delivery through Resend (mock by default, section 13); funnel analytics events through a provider-independent layer (**disabled**, nothing sent, section 6). Shared calculation and formatting; tests. **M5 hardening in progress** (section 10). Nothing is deployed and no real email has been sent.
+
+> ⚠ **Fund data is a snapshot from 7–8 Oct 2026 and must be reviewed and refreshed before launch.** TERs, 12-month distributions, NAVs, the ČNB rate and the XTB fee-table date all age. The page shows whatever `research/etf-data.json` contains, and nothing warns when it is stale. Follow the refresh procedure in section 14 right before any public traffic. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html).
 **Scope:** a landing page for Czech retail investors arriving from mobile ads. It explains the differences, the costs and the practical restrictions of seven US-listed ETFs, and collects an email in exchange for the full comparison and a checklist.
 
 The brief uses only claims supported by [research/](research/README.md). References like *(A1)* or *(F2)* point to sections of [research/claims-verification.md](research/claims-verification.md). Fund data comes from [research/etf-data.json](research/etf-data.json).
@@ -41,8 +43,9 @@ Details in section 9.
   - the first screen on real devices and in-app browsers (section 10, acceptance criteria).
 
 ### Blockers before public launch
-The full table is in section 8. In short:
+Section 8 separates three stages: a **demo deployment** (mock, no email sent), **real email delivery**, and **public advertising**; each adds requirements to the one before. The full blocker table is in section 8. In short:
 - ⛔ legal review
+- ⛔ shared store for rate limits (the in-memory limits don't hold on serverless; section 13)
 - operator identity
 - privacy notice
 - real email sending (provider, domain with SPF/DKIM, storage and retention)
@@ -503,6 +506,59 @@ The UI code does not change: components call `tracker.track(...)` / `trackOnce(.
 
 **Blocker** = the page receives no ad traffic until it's resolved. The prototype can be built and tested before then. **Later** = improves the page but can follow launch. Legal references point to [research H/G](research/claims-verification.md).
 
+### Requirements by stage
+
+Each stage adds to the previous one. None of the stages has been carried out yet; nothing is deployed.
+
+**Stage 1: demo deployment (mock mode, no email is sent).** For showing the working page to reviewers on a Vercel preview.
+
+*Required:*
+- A Vercel project (account and owner are the operator's decision), deployed as a **Preview**, not Production. Production refuses mock mode, so the form would answer 503 there.
+- Preview environment variable `EMAIL_DELIVERY_MODE=mock`, and nothing else for email. **No** `RESEND_API_KEY`, no other Resend variables, and no analytics provider (none exists in the code).
+- `npm test`, `npm run typecheck`, `npm run lint` and `npm run build` pass, and so does the local Vercel build check (section 10).
+- On the preview, check the items that a local check can't prove (section 10, "What a local check does NOT prove").
+
+*What visitors see:*
+- The form works end to end, but the confirmation says the send was only simulated („Ukázka – e-mail se neodeslal … jsme jen nasimulovali. Žádný e-mail neodešel.“), with the MOCK notice.
+- The other form's line says the same.
+- Nothing is sent, and nothing is stored beyond in-memory hashes.
+- The local dev outbox (`/api/dev/outbox`) does not exist on a deployment.
+
+*Limits:*
+- Share the link with reviewers only, and keep it protected (check the project's Deployment Protection setting). Never use it for ads.
+- The page still shows the operator and privacy-notice placeholders and the 7–8 Oct 2026 data snapshot.
+- Reviewers should type test addresses. An address typed into a demo form still reaches the server, even though nothing is sent.
+
+**Stage 2: real email delivery** (adds to stage 1). Before any real visitor gets a real email:
+- **Production** deployment with `EMAIL_DELIVERY_MODE=resend` and every variable in section 13:
+  - `EMAIL_DELIVERY_CONFIRM`;
+  - a sending-only `RESEND_API_KEY` in Vercel's environment settings, never in the repo;
+  - `EMAIL_FROM` on a domain verified in Resend (SPF + DKIM);
+  - `EMAIL_OPERATOR_LINE`;
+  - `ALLOWED_ORIGINS`.
+- ⛔ The **shared rate-limit store**, with a shared hashing secret and failing closed. The form sends email to any address, so the in-memory limits are not enough once the form is reachable by anyone outside the team.
+- Confirm Resend's idempotency behaviour after *failed* requests, and adjust the retry key if needed (section 13).
+- Operator identity, the privacy notice linked from both forms, and the retention policy (⚖, part of the legal review).
+- A real-inbox test, including spam placement, and monitoring of bounces and complaints in Resend.
+- Only in this mode does the page show the real confirmation („Hotovo ✓ … jsme poslali na …“), and only after Resend has accepted the email.
+
+**Stage 3: public advertising** (adds to stages 1 and 2):
+- ⛔ The **legal review** is complete (ZISIF offering question; the MAR / ZPKT recommendation and advice boundary).
+- **Data refreshed** within days of launch (section 14).
+- **Analytics:**
+  - a provider is chosen and connected;
+  - the consent decision is made (⚖), and the consent interface is built if it's needed;
+  - the privacy notice covers analytics;
+  - the checks under section 6, "Implemented now vs. required before advertising", are done.
+- Copy guardrails and disclaimers are checked against the build.
+- **Real-device QA:**
+  - phones, plus the Facebook, Instagram and TikTok in-app browsers;
+  - the first-screen criteria (section 10);
+  - autofill behaviour.
+- The performance budget.
+- Ad URL templates that pass the UTM sanitizer (section 6); a landing variant ID if A/B tests are run.
+- Every row of the blocker table below is closed.
+
 ### Blockers
 
 | Area | Minimum requirement | Basis |
@@ -511,12 +567,12 @@ The UI code does not change: components call `tracker.track(...)` / `trackOnce(.
 | Operator identity | Name, registered office, IČO and registry entry (if any), and a contact email, visible on the page and in every email | Civil Code § 435(1); § 7(4)(b) Act 480/2004 |
 | Privacy notice | Controller identity and contact, purpose (only delivering the requested comparison), legal basis (to be set by compliance), recipients (hosting, email provider, analytics), retention period, transfers outside the EU (if a provider is outside the EU), rights including complaint to ÚOOÚ. Linked next to the form button | GDPR Art. 13 via ÚOOÚ (full article text to re-check) |
 | Email flow | **Built in M3** (section 13): one email with exactly the promised content, failures visible and retryable, success only after Resend accepts. **Still open before launch:** a verified sender domain in Resend (SPF + DKIM), production credentials, `EMAIL_OPERATOR_LINE`, `ALLOWED_ORIGINS`, and a real-inbox delivery test (including spam placement) | Act 480/2004 § 7; Gmail sender requirements |
-| Abuse protection store | Rate limits and duplicate detection are in-memory per server instance. On serverless hosting they must move to a shared store (e.g. Redis/KV) before public launch. Duplicate emails are already prevented by Resend idempotency keys | Section 13 |
+| **Abuse protection store** ⛔ | Rate limits and duplicate detection are in-memory per server instance. On serverless hosting every instance has its own copy, so they don't stop someone using the form to send our email to third parties. **Before any ad traffic** they must move to a shared store (e.g. a hosted Redis), with the address hash keyed by a shared server-side secret instead of today's per-instance random salt. Duplicate emails are already prevented by Resend idempotency keys | Section 13 (M5 audit) |
 | Email storage | Decided where addresses are stored, who can access them and for how long. Processor terms with the hosting/email provider checked | GDPR (needs compliance check) |
 | Analytics consent | No non-essential device storage or reading before consent. Refusing as easy as accepting. Funnel events contain no personal data. **Built:** events without personal data, a consent gate that every adapter passes through (default: nothing sent, no replay). **Open:** whether the chosen provider needs consent, and if so the consent interface with withdrawal (section 6, Privacy and consent) | § 89(3) Act 127/2005; ÚOOÚ |
 | Funnel tracking | **Built in M4** (section 6): the funnel events fire with UTM, device and in-app context; `lead_email_accepted` only after Resend accepted the email (not inbox delivery). **Open:** everything under section 6 "Implemented now vs. required before advertising": provider, consent decision and interface, conversion-rate basis under consent, verification on real devices, variant ID, `guide_opened` | Assignment requirement |
 | Source attribution | Every figure on the page and in the email shows its source and "as of" date. A methods/assumptions section exists. All figures are derived from `etf-data.json` through one shared calculation; no hard-coded or duplicated figures (Implementation 5) | Research rules; assignment ("cite the source") |
-| Data refresh | TER, distributions, NAV, the XTB fee and the ČNB rate re-pulled within days of launch; ČNB rate date displayed | Research F |
+| Data refresh | TER, distributions, NAV, the XTB fee and the ČNB rate re-pulled within days of launch; ČNB rate date displayed. Procedure: section 14 | Research F |
 | Copy guardrails | Promise and card follow section 2 and 3a rules: no total, no ranking between lines, no "N years" line, *daň* not *poplatek*, *může* not *platíte*, neutral default, no buy or broker links, no forecasts | Research B0, B4, G4 |
 | Disclaimers | Not investment advice or a recommendation; not tax advice; historical data isn't a forecast; currency note | G4; D3 |
 | Mobile QA | Works in Facebook/Instagram in-app browsers; form usable on small screens; first screen shows a result without interaction | Brief section 1 |
@@ -613,51 +669,124 @@ The UI code does not change: components call `tracker.track(...)` / `trackOnce(.
 
 These are implementation-level choices made so the build can start. None of them reopens a product decision.
 
-### Intended architecture
-- **Stack** (set 2026-10-09): React 19 + TypeScript + Vite 8, Tailwind CSS 4 (design tokens as CSS variables in the Tailwind `@theme`), Vitest. No UI component library. Self-hosted fonts via Fontsource; nothing loads from a CDN.
-  - Local only for now; later deployment target Vercel (free tier).
-  - One serverless function later: `POST /api/lead` (not built in M1).
-- **Code layout (as built in M1):**
-  - `src/domain/etfData.ts`: loads and validates `research/etf-data.json`; core funds only, alphabetical; `defaultTicker` = first.
-  - `src/domain/calc.ts`: full-precision calculations, no rounding.
-  - `src/domain/format.ts`: display rounding and Czech formatting (the only place rounding happens).
-  - `src/domain/result.ts`: a framework-free result model that combines data, calculation, formatting and copy. The page uses it now; the email renderer should use it later.
-  - `src/domain/comparison.ts` (M2): the 7-fund comparison model from the same calc and format functions. Groups (same index / other index), the fee gap, the TER range, the conversion stated once, and an "all funds distribute" check from the data.
-  - `src/content/cs.ts`: all Czech copy from the wireframe; figures are interpolated, never typed.
-  - `src/components/*`:
-    - M1: `EtfPicker`, `AmountControl`, `ResultCard`, `Methodology`.
-    - M2: `Section` (the shared editorial frame), `Comparison`, `Explainers`, `Checklist`.
-  - `src/App.tsx`: page shell and state.
-- **Data, the single source:** `research/etf-data.json` is imported at build time.
-  - A build-time check fails the build if required fields are missing (TER, TER date, distributions + NAV or issuer yield, index, inception) or if the data date is missing.
-  - No fund figure is typed anywhere else.
-- **Shared calculation module** (`src/lib/calc.ts`), pure functions with no rounding:
-  - `yieldPct(fund)` = Σ distributions ÷ NAV × 100, or the issuer yield for SPY and SPYM;
-  - `lines(fund, amount, rate)` → `{ fee, conversion, tax15, tax30 }` from the full amount;
-  - `sameIndexFeeGap(funds)`.
-- **Display formatting** (`src/lib/format.ts`):
-  - `roundCzk`: 3 significant digits, at least whole CZK, half-up, float noise removed first;
-  - `kc()`: "0 Kč", "< 1 Kč" or "≈ … Kč";
-  - Czech number formatting;
-  - yield to 2 decimals; the model rate trimmed to the decimals the slider uses.
-  - **Rounding happens only here.**
-- **Copy:** all Czech strings in one module (`src/copy/cs.ts`), taken from the final wireframe. Sources, dates and assumptions are interpolated from the data.
-- **Lead endpoint** `/api/lead`:
-  - validates the email format and the honeypot;
-  - applies a basic rate limit;
-  - renders the email from the **same** data, calc and format modules (your check, the 7-fund table, the checklist, the methodology);
-  - sends it through an `EmailSender` interface.
-  - Until a provider and domain are chosen, only a development adapter exists (logs or uses a local test inbox).
-  - Addresses aren't stored beyond the send until a retention period is decided.
-  - Returns success or a typed error; the page shows the confirmation only on confirmed success.
-- **Analytics** (as built in M4, `src/analytics/`):
-  - `events.ts`: the event catalogue, buckets and a runtime allow-list that strips anything not in the schema;
-  - `tracker.ts`: `track` / `trackOnce`, sinks (adapters) and the consent gate every adapter passes through;
-  - `context.ts`: UTM, device class and in-app flag; `leadFunnel.ts`: the lead-flow event rules; `dwell.ts` + `hooks.ts` + `react.tsx`: the "seen" rule and React bindings;
-  - no receiver in production builds; no cookies, device storage or identifiers.
-- **Tests:**
-  - unit tests (Vitest) for calc and format;
-  - end-to-end tests (Playwright) at 360/375/390 px widths, with the lead API mocked for success and failure.
+### Architecture (as built, M1–M5)
+- **Stack** (set 2026-10-09): React 19 + TypeScript + Vite 8, Tailwind CSS 4 (design tokens as CSS variables in the Tailwind `@theme`), Vitest, oxlint. No UI component library. Self-hosted fonts via Fontsource; nothing loads from a CDN.
+- **Deployment target:** Vercel (free tier).
+  - The static page is built to `dist/`, and one function, `api/lead.ts`, serves `POST /api/lead`.
+  - `vercel.json` sets the function time limit and the security headers (see "Security configuration" below).
+  - **Nothing is deployed.** The Vercel build was checked **locally only**: `vercel build` plus loading the emitted function under Node 22 (procedure and results under "Vercel build: local check vs. real preview" below). A real Vercel preview has not been made.
+  - **ESM rule for the function's code.** `@vercel/node` compiles each file to ES modules without bundling. Node's loader then needs an explicit `.js` extension on every relative import (`'./calc.js'`, which TypeScript, Vite and Vitest resolve to `calc.ts`) and `with { type: 'json' }` on JSON imports. Without them `vercel build` still reports success, but the function fails on load with `ERR_MODULE_NOT_FOUND` (found and fixed in M5). `server/functionImports.test.ts` walks the import graph from `api/lead.ts` and fails on any violation.
+- **Code layout:**
+
+  | Path | What it holds |
+  |---|---|
+  | `research/etf-data.json` | The single source of fund data, imported at build time |
+  | `src/domain/etfData.ts` | Validates and types the data (`parseEtfData`); core funds only, alphabetical; `defaultTicker` = first |
+  | `src/domain/calc.ts` | Full-precision calculations, no rounding: `trailingYieldPct`, `costLines` (fee, conversion, tax 15 % / 30 %), `feeGapPctPoints`, and the `AMOUNT` / `CONVERSION_RATE` limits |
+  | `src/domain/format.ts` | Display rounding and Czech formatting, the **only** place rounding happens: `roundCzk` (3 significant digits, at least whole CZK, half-up), `formatCzkEstimate` ("0 Kč", "< 1 Kč", "≈ … Kč"), the yield to 2 decimals, the rate, dates |
+  | `src/domain/result.ts`, `comparison.ts`, `methodology.ts` | Framework-free models for the card, the 7-fund comparison and the methodology/sources, shared by the page **and** the email |
+  | `src/content/cs.ts` | All Czech copy; figures are interpolated, never typed |
+  | `src/components/*` | `EtfPicker`, `AmountControl`, `ResultCard`, `Section`, `Comparison`, `Explainers`, `Checklist`, `Methodology`, `LeadForm` |
+  | `src/App.tsx`, `src/main.tsx` | Page shell and state; tracker set-up |
+  | `src/lead/` | Shared validation (browser + server), the browser client, the focus rule after a failed send |
+  | `src/email/leadEmail.ts` | The email (HTML + text), rendered from the same domain modules |
+  | `src/analytics/` | The event layer (section 6) |
+  | `server/config.ts` | Environment validation (fails closed) |
+  | `server/email/` | `EmailProvider` interface; Resend and mock adapters |
+  | `server/lead/` | Request handler, endpoint factory, in-memory limiter and intent store |
+  | `server/devApi.ts` | Vite dev middleware: `/api/lead` and the loopback-only mock outbox |
+  | `api/lead.ts` | Vercel function entry |
+  | `vercel.json` | Function time limit and security headers |
+  | `.vercel/` | Created by the Vercel CLI (project link, `vercel build` output). Git- and lint-ignored, never committed |
+
+- **Data validation:** `parseEtfData` checks required fields when the module loads: TER, distributions + NAV or the issuer yield, index, inception, the data date and the ČNB rate. If a field is missing it throws, which blanks the page and stops the email. `npm test` runs the same check (and the reference figures) against the real file. **The build itself does not run it, so run `npm test` before every deploy.** No fund figure is typed anywhere else; a test enforces it.
+- **Lead endpoint** (details in section 13):
+  - validation shared with the browser (plain addresses only);
+  - honeypot, origin check, per-IP and per-address limits;
+  - idempotent sends through the `EmailProvider` interface: mock by default, Resend only when fully configured;
+  - success only after the provider accepts the email.
+- **Analytics** (section 6, `src/analytics/`):
+  - `events.ts`: the event catalogue, buckets and a runtime allow-list;
+  - `tracker.ts`: `track` / `trackOnce`, sinks and the consent gate;
+  - `context.ts`, `leadFunnel.ts`, `dwell.ts`, `hooks.ts`, `react.tsx`.
+  - No receiver in production builds.
+- **Tests:** Vitest only (`npm test`, node environment):
+  - **domain:** the data, the F3 reference figures, rounding, comparison, result;
+  - **lead flow:** validation, the client, the focus rule, the handler, the endpoint, the config, the providers, the email content;
+  - **analytics:** semantics, consent and the privacy guards;
+  - **deploy config:** `vercel.json` shape, timeouts, headers.
+  - **No browser end-to-end tests exist.** The first screen, the funnel, form states and responsive layouts were checked manually in a browser at 320 / 375 / 1280 px (M3–M5). Automating this (e.g. Playwright) is optional and not set up.
+- **Security configuration** (`vercel.json`, schema https://openapi.vercel.sh/vercel.json; not deployed):
+  - `functions["api/lead.ts"].maxDuration = 25` s. For non-Next.js functions Vercel reads this from `vercel.json` (or an exported `config` object), not from a bare `export const maxDuration`, which was removed. A test keeps the chain provider timeout (≤ 15 s) < browser timeout (20 s) < function limit (25 s).
+  - Headers on every path:
+    - `X-Content-Type-Options: nosniff`;
+    - `Referrer-Policy: strict-origin-when-cross-origin`;
+    - `X-Frame-Options: DENY`;
+    - `Permissions-Policy` (camera, microphone, geolocation, payment, usb, browsing-topics disabled);
+    - `Cross-Origin-Opener-Policy: same-origin`;
+    - a **minimal CSP**: `frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`.
+  - The CSP deliberately does not restrict scripts, styles, fonts, images or requests yet, because a wrong policy would break the page. A fuller policy (`default-src 'self'` …) should first run as `Content-Security-Policy-Report-Only` on a preview deploy. Note that Vercel's preview toolbar loads its own scripts.
+  - HSTS is not set here. On the preview deploy, check whether Vercel already sends `Strict-Transport-Security`, then decide a value for the final domain. `includeSubDomains` / `preload` affect every subdomain of the operator's domain, which isn't known yet.
+
+### Vercel build: local check vs. real preview
+
+**Local check (no account, no login, no deploy).** Run it in a scratch copy, so that no `.vercel/` output lands in the repository (`.vercel/` is also git-ignored).
+
+1. Copy the working tree outside the repo, without `node_modules`, `dist`, `.git` and `.vercel`. Run `npm ci` there.
+2. Instead of `vercel link` / `vercel pull`, which need an account, write `.vercel/project.json` by hand:
+
+   ```json
+   {
+     "projectId": "prj_local_verification_only",
+     "orgId": "team_local_verification_only",
+     "settings": { "framework": "vite", "buildCommand": null, "outputDirectory": null, "installCommand": null, "devCommand": null, "rootDirectory": null, "nodeVersion": "22.x" }
+   }
+   ```
+3. Build the preview target with the official CLI, without adding it to the project (63.1.2 used in M5):
+
+   ```bash
+   VERCEL_TELEMETRY_DISABLED=1 npx --yes vercel@63.1.2 build --standalone
+   ```
+4. Inspect `.vercel/output/`:
+   - `functions/api/lead.func/.vc-config.json`: runtime `nodejs22.x`, `maxDuration: 25`;
+   - `config.json`: the header route on `/(.*)`;
+   - `static/`: the page.
+5. In `functions/api/lead.func`, load the function under **Node 22** in mock mode:
+
+   ```bash
+   EMAIL_DELIVERY_MODE=mock VERCEL_ENV=preview NODE_ENV=production node -e "import('./api/lead.js').then(m => console.log(Object.keys(m)))"
+   ```
+
+   It must print `[ 'POST' ]`. Then call `POST` with a Web `Request`: a valid body → 200 mock "sent"; a display-name address → 400; misconfigurations → 503.
+
+**Results of the local check (M5, 2026-10-09):**
+- The build completes and the function loads.
+- Mock requests behave as specified.
+- Dev-only paths return 404.
+- The build output contains no debug buffer and no secrets.
+
+The builder still prints **non-fatal type diagnostics** (`TS2591 process`, `TS2339` on narrowed unions). It type-checks with its own default options, because the root `tsconfig.json` only holds project references. They don't affect the emitted code, and our own `npm run typecheck` is clean.
+
+**What a local check does NOT prove** (needs a real Vercel preview):
+- that Vercel's own function launcher loads the code on its runtime image (locally: plain Node 22);
+- Vercel's routing, and that headers are applied at its edge;
+- whether Vercel adds HSTS itself;
+- that `maxDuration` is enforced, and the cold-start time;
+- the runtime values of `NODE_ENV` / `VERCEL_ENV`;
+- that `x-forwarded-for` is set by Vercel and can't be spoofed;
+- the response to methods other than POST;
+- behaviour on real phones and in the in-app browsers.
+
+The M5 browser checks ran against a local stand-in that served the build output (`static/` + the header route + the built function). It is not Vercel's router.
+
+**Configuration for a future demo preview (not done):**
+
+| Vercel environment | `EMAIL_DELIVERY_MODE` | Other email variables |
+|---|---|---|
+| Preview (demo) | **`mock`, set explicitly.** Vercel functions run with `NODE_ENV=production`, so an unset mode makes the endpoint refuse to run (503) by design | None. **Don't set `RESEND_API_KEY`** for Preview |
+| Production | Never `mock` (refused with 503 when `VERCEL_ENV=production`) | Only after the section 8 blockers, as listed in section 13 |
+
+In mock mode the confirmation says the send was only simulated and that no email was sent (section 8, stage 1). Neither the page nor the function's logs mention `/api/dev/outbox`. Only the local Vite dev server logs where its outbox is, because it exists nowhere else. A test (`server/devApi.test.ts`) keeps it that way.
 
 ### Implementation priorities
 1. **M1, data and calculation core with the first screen** — ✅ built locally 2026-10-09 (no deploy yet):
@@ -679,21 +808,26 @@ These are implementation-level choices made so the build can start. None of them
    - the email rendered from the shared modules;
    - loading / success / error / "already sent" / "pošlete znovu" states.
 4. **M4, funnel analytics** — ✅ built locally 2026-10-09 (section 6): provider-independent event layer, the funnel events wired into the page and both forms, consent gate, privacy guard tests. Disabled: no provider, nothing sent.
-5. **M5, hardening:** performance budget, the real-device QA list, data-refresh procedure (a re-pull checklist that updates `etf-data.json` and its dates).
+5. **M5, hardening** — in progress:
+   - read-only audit done;
+   - fixed: plain-address email validation; the honeypot renamed to a field browsers don't autofill; focus back on the email field after a failed send; `vercel.json` (function limit, security headers); provider timeout capped at 15 s; README synced; data-refresh procedure (section 14).
+   - local Vercel build check: found that the built function failed to load (extensionless ESM imports, JSON without an import attribute). Fixed with explicit `.js` extensions and the JSON attribute, guarded by a test; `.vercel/` ignored.
+   - demo confirmation: the mock-mode wording now says the send was simulated and no email was sent (title, sentence, „pošlete znovu“ line, the other form's line, notice). The pointer to `/api/dev/outbox` was removed from the page and the function's log.
+   - **Open:** a real Vercel preview in mock mode, the shared rate-limit store ⛔, Resend retry semantics after failed requests, the performance budget and the real-device QA list.
 6. **M6, public launch:** only after every section 8 blocker is closed. These are external: legal review, operator, privacy notice, email provider and domain, analytics and consent.
 
 ### Acceptance criteria (prototype build)
 - **Figures**
   - Unit tests reproduce the research F3 table exactly for all 7 funds: fee, conversion, 15 %, 30 % at 100 000 Kč and a 0.5 % rate.
   - Rounding cases pass: 94,5 → 95; 155,93 → 156; 999,5 → 1 000; 1 005 → 1 010; 15 593 → 15 600; 0 → "0 Kč"; 0,4 → "< 1 Kč".
-- **Independence:** the rate changes only the conversion line; the fund changes only the fee and tax; the amount changes all three (end-to-end test).
+- **Independence:** the rate changes only the conversion line; the fund changes only the fee and tax; the amount changes all three (unit tests in `calc.test.ts`; no browser end-to-end test).
 - **Single source:** a test or lint check fails if any TER, yield, distribution or NAV value appears in `src/` outside the data import.
 - **Inputs**
   - Custom amounts outside 1 000–10 000 000 Kč show an error and keep the last valid figures.
   - Default state: IVV, 100 000 Kč, 0,5 %, with the one-line default rule visible until the first selection.
 - **First screen**
   - The bottom of the first cost figure is at ≤ 548 CSS px at 375 px width and ≤ 560 CSS px at 360 px width, in the default state.
-  - Wireframe reference: 517 / 535 px.
+  - Wireframe reference: 517 / 535 px. Measured in the build (M5 audit, browser emulation): 517 px at 375 px.
   - Then confirmed on real devices, including the Instagram/Facebook in-app browsers.
 - **Forms**
   - An invalid email shows the error, which clears when the user edits.
@@ -718,7 +852,7 @@ These are implementation-level choices made so the build can start. None of them
 - Email provider and sending domain (SPF/DKIM).
 - Retention period.
 - Analytics tool and consent approach.
-- Data re-pull right before launch.
+- Data re-pull right before launch (section 14).
 
 Details and the legal basis for each are in sections 8 and 9c.
 
@@ -782,7 +916,7 @@ Deliberate differences from the references: no pills, no soft blob cards, square
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # Vitest (239 tests): data, F3 figures, rounding, comparison, validation, lead endpoint, providers, email content, analytics
+npm test           # Vitest (302 tests): data + F3 figures, rounding, comparison, lead validation/flow, email content, analytics, deploy config, function imports
 npm run typecheck  # tsc -b (app, tests, config)
 npm run build      # type-check + production build to dist/
 npm run lint       # oxlint
@@ -802,9 +936,11 @@ npm run lint       # oxlint
 - `api/lead.ts`: the serverless entry for later deployment (not deployed).
 
 ### How a send works
-1. The form validates the address in the browser (the same rules as the server) and sends `{email, ticker, amountCzk, conversionRatePct, requestId, company}`.
+1. The form validates the address in the browser (the same rules as the server) and sends `{email, ticker, amountCzk, conversionRatePct, requestId, topic}`.
+   - **Plain addresses only** (`src/lead/validation.ts`): dot-atom local part (no quotes, no leading, trailing or double dots), at least two domain labels, and an alphabetic or punycode TLD. Display names (`"Bank" <a@b.cz>`), angle brackets, commas, semicolons, spaces, comments, IP literals and non-ASCII characters are rejected, so the recipient is never ambiguous and the per-address limit can't be dodged with variants.
    - `requestId` is one UUID per send intent: a retry of the same attempt reuses it; „pošlete znovu“ creates a new one.
-   - `company` is the hidden honeypot field.
+   - `topic` is the hidden honeypot field, renamed from `company` in M5. Browsers and password managers autofill "company", and an autofilled honeypot would give a real visitor a fake success. The new name, a neutral label and opt-out attributes for common password managers avoid that.
+   - After a failed or unconfirmed attempt, focus returns to the email field, which the error message describes, so a keyboard user can correct it or press Enter to retry. Focus isn't taken if the visitor has moved elsewhere in the meantime.
 2. The server checks the method, the origin (if configured), the content type, the per-IP limit (10 requests / 10 min), the body size (4 KB) and the input.
 3. **Honeypot filled** → answers like a success and sends nothing.
 4. **Duplicates:**
@@ -823,19 +959,25 @@ npm run lint       # oxlint
 
 8. **Logs** contain the event type, mode, provider id and ticker. Never the email address or the IP.
 
-### Limits of the current abuse protection (not production-ready for multiple instances)
-- **The rate limits and the intent store live in the memory of one server process.** That is enough for the local dev server and a single long-running instance. It is **not sufficient for a multi-instance or serverless production deployment**: every instance (and every cold start) has its own empty copy, so the per-IP and per-address limits can be exceeded by a factor of the instance count, and they reset on redeploy. Before public launch they must move to a shared store (e.g. Redis/KV) — listed as a blocker in section 8.
+### Limits of the current abuse protection (not production-ready for multiple instances — ⛔ launch blocker)
+- **The rate limits and the intent store live in the memory of one server process.** That is enough for the local dev server and a single long-running instance. It is **not sufficient for a multi-instance or serverless production deployment**: every instance (and every cold start) has its own empty copy, so the per-IP and per-address limits can be exceeded by a factor of the instance count, and they reset on redeploy. **Before any ad traffic** they must move to a shared store (e.g. a hosted Redis with atomic counters and expiry), listed as a ⛔ blocker in section 8. The address hash must then use a shared server-side secret instead of the per-instance random salt. If the store is unreachable, sending must fail closed.
 - **Duplicate emails do not depend on this memory.** Every send carries the Resend idempotency key `lead-<requestId>`, which Resend honours across instances (for 24 h). A retry of the same attempt landing on another instance therefore cannot send a second email.
+- **Not yet verified (M5 audit):** what Resend returns when a key whose first request *failed* (429 / 5xx / validation) is reused. If it replays the cached error, „Zkusit znovu“ after such a failure keeps failing for that attempt. The retry logic stays unchanged until this is confirmed against Resend.
 - **Concurrent sends to one address with different `requestId`s** (two tabs submitted at the same moment) can both pass the per-address check before either is counted. Acceptable at a limit of 3 / 24 h; a shared store with an atomic increment closes it.
 - **Client IP:** `api/lead.ts` takes the first `x-forwarded-for` entry, which Vercel sets itself. On a host that passes the header through from the client, it can be spoofed and the per-IP limit becomes advisory.
-- **Timeouts:** the provider timeout is 10 s (`EMAIL_PROVIDER_TIMEOUT_MS`, clamped to 1–30 s). The serverless function limit (`maxDuration = 25` in `api/lead.ts`) must stay above it, so the function answers „unconfirmed“ itself. If the platform still cuts the request off, the browser maps the gateway error or its own 20 s timeout to „unconfirmed“ too — never to success.
+- **Timeouts:** the provider timeout is 10 s (`EMAIL_PROVIDER_TIMEOUT_MS`, allowed 1–15 s; anything else falls back to 10 s). The browser gives up after 20 s, and the function limit is 25 s (`vercel.json`). This order means the function answers „unconfirmed“ itself. If the platform still cuts the request off, the browser maps the gateway error or its own 20 s timeout to „unconfirmed“ too — never to success.
 
 ### Mock mode (default)
 - **When:** `EMAIL_DELIVERY_MODE` unset (outside production) or `mock`. The server log says „delivery mode: MOCK“.
 - **What it does:** the mock provider never touches the network. It keeps the last 10 rendered emails in memory with masked recipients (`j***@e***.cz`); a restart clears them.
 - **Preview:** `GET /api/dev/outbox` lists them, and `/api/dev/outbox/<n>` shows the HTML (`?format=text` for plain text). The preview exists only in the Vite dev server (not in `vite preview`, the production build or the serverless entry), and it answers only requests from this machine (loopback), even if the dev server is started with `--host`.
-- **Not on the live site:** with `VERCEL_ENV=production` the mock mode is refused (503), so production visitors can never get a confirmation for an email that was not sent. Preview deployments may still use mock.
-- **Visible on the page:** the confirmation shows a „MOCK“ notice, so a mock send can't be mistaken for a real one.
+- **Not on the live site:** with `VERCEL_ENV=production` the mock mode is refused (503), so production visitors can never get a confirmation for an email that was not sent. Preview deployments may use mock, but must set `EMAIL_DELIVERY_MODE=mock` explicitly (section 10, "Configuration for a future demo preview").
+- **Visible on the page:** the same confirmation layout, but in demo wording (`src/lead/confirmationCopy.ts`).
+  - The title is „Ukázka – e-mail se neodeslal“, and the sentence says the send to the address was only simulated and no email went out.
+  - A „MOCK“ notice says email sending is switched off.
+  - The other form's line says the same.
+  - Nothing in mock mode claims a send or tells the visitor to check their inbox or spam.
+- **Outbox:** the dev server logs the outbox location on first use. The function's log only says „delivery mode: MOCK (simulated sends – no email is sent)“.
 
 ### Real delivery through Resend: what must be configured (not done; launch blockers)
 Server-side environment variables only; none is `VITE_`-prefixed, so they never reach the browser. Template: `.env.example`. `.env*` files are git-ignored.
@@ -861,3 +1003,55 @@ If any of these is missing while `EMAIL_DELIVERY_MODE=resend`, the endpoint refu
 - production credentials;
 - a shared store for rate limits and the intent store on serverless or multi-instance hosting (see "Limits of the current abuse protection" above);
 - a real-inbox test.
+
+---
+
+## 14. ETF data refresh procedure
+
+> ⚠ **Before launch, review and refresh every dated figure.**
+> - The current snapshot is from **7–8 Oct 2026** (`_meta.accessed`).
+> - The page and the email display exactly what `research/etf-data.json` and the dated copy contain.
+> - Nothing checks freshness automatically. A stale TER or dividend window would be shown as if current.
+
+**When:**
+- right before public launch (within days);
+- then at least after each quarter's distributions (the funds pay in Mar / Jun / Sep / Dec, which shifts the 12-month window);
+- whenever an issuer changes a TER;
+- whenever the broker fee table used for the default rate changes.
+
+The exact cadence after launch is a product decision.
+
+**1. Fund figures** in `research/etf-data.json`, per core fund, from the issuer page in its `source` field:
+- `expense_ratio_pct.value` and `as_of`. Use `null` if the issuer gives no date, as for IVV today.
+- `trailing_dividend_yield_pct`:
+  - `distributions_per_share_usd`, every distribution with an ex-date in the past 365 days;
+  - `nav_usd` and `nav_date`;
+  - `window` (`ex-dates YYYY-MM-DD..YYYY-MM-DD`);
+  - `status`.
+- For **SPY and SPYM** the issuer-published „Fund Distribution Yield“ is used instead (`value`, with `distributions_per_share_usd: null`).
+- Re-check that `index`, `exchange`, `distribution` and `inception` are unchanged.
+- Keep a `status` / `note` on every value. Never add a value without a source.
+
+**2. Shared figures** in `_meta`:
+- `exchange_rate`: `date`, `sequence` and `USD_CZK` from the ČNB `denni_kurz.txt` (URL in the file);
+- `accessed`: the date of the re-pull.
+
+**3. Dated facts outside the data file** (manual, easy to miss):
+- `src/content/cs.ts`: the XTB fee-table date („sazebníku XTB ze dne 29. 4. 2026“, in the conversion methodology text and in the source label) and the law-version date („znění k 1. 8. 2026“). Re-read the sources.
+- `src/domain/calc.ts`: `CONVERSION_RATE.defaultPct` (0.5), which equals the XTB markup. Change it only if the fee table changes, and update the copy with it.
+- `research/claims-verification.md` (F2 / F3 tables) and `research/README.md`: record the new figures, dates and any changes.
+
+**4. Tests pinned to the snapshot** (expected to fail after a re-pull; update them deliberately, from the recomputed research F3 table, never by copying the app's output):
+- `src/domain/calc.test.ts` and `comparison.test.ts` (F3 reference figures);
+- `src/domain/etfData.test.ts` (`accessed`);
+- `src/domain/result.test.ts` (TER dates, dividend window);
+- `src/email/leadEmail.test.ts` (example figures, dates, ČNB rate).
+
+**5. Verify:**
+- `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`.
+- In `npm run dev`, check every fund in the card and the comparison, with the dates in the stamp and the methodology.
+- Check that the copy derived from the data still holds: the same-index fee-gap sentence, "all funds distribute", and the TER range.
+- Send one mock email and read it at `/api/dev/outbox`.
+- If a fund's character changed (e.g. it stopped distributing, or changed its index or listing), stop and review the copy and the research before publishing.
+
+**6. Record:** commit with the re-pull date in the message, and update the data warning in section 0.

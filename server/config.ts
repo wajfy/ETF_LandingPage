@@ -38,6 +38,13 @@ type Env = Record<string, string | undefined>
 
 export const REAL_DELIVERY_ACK = 'send-real-emails'
 
+/**
+ * Allowed provider timeout. The upper bound keeps the chain provider < browser (CLIENT_TIMEOUT_MS,
+ * 20 s) < function limit (vercel.json maxDuration, 25 s), so a slow provider ends as "unconfirmed"
+ * on the server before the browser gives up or the platform cuts the function off.
+ */
+export const PROVIDER_TIMEOUT_RANGE_MS = { min: 1_000, max: 15_000 } as const
+
 const DEFAULT_LIMITS: LeadConfig['limits'] = {
   perIp: { max: 10, windowMs: 10 * 60_000 },
   perAddress: { max: 3, windowMs: 24 * 60 * 60_000 },
@@ -57,7 +64,8 @@ export function loadLeadConfig(env: Env): ConfigResult {
   const warnings: string[] = []
   const rawMode = env.EMAIL_DELIVERY_MODE?.trim().toLowerCase()
   const timeout = Number(env.EMAIL_PROVIDER_TIMEOUT_MS ?? 10_000)
-  const providerTimeoutMs = Number.isFinite(timeout) && timeout >= 1_000 && timeout <= 30_000 ? timeout : 10_000
+  const providerTimeoutMs =
+    Number.isFinite(timeout) && timeout >= PROVIDER_TIMEOUT_RANGE_MS.min && timeout <= PROVIDER_TIMEOUT_RANGE_MS.max ? timeout : 10_000
 
   if (rawMode !== undefined && rawMode !== '' && rawMode !== 'mock' && rawMode !== 'resend') {
     return { ok: false, error: `EMAIL_DELIVERY_MODE must be "mock" or "resend" (got "${rawMode}")` }

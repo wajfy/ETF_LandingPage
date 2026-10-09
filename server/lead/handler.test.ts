@@ -19,7 +19,7 @@ const body = (patch: Record<string, unknown> = {}) => ({
   amountCzk: 100_000,
   conversionRatePct: 0.5,
   requestId: uuid(),
-  company: '',
+  topic: '',
   ...patch,
 })
 const post = (b: unknown, headers: Record<string, string> = {}) =>
@@ -96,11 +96,30 @@ describe('validation and request hygiene', () => {
 describe('honeypot', () => {
   it('answers like a success but sends nothing when the hidden field is filled', async () => {
     const { handle, sendSpy, logs } = setup()
-    const r = await read(await handle(post(body({ company: 'ACME' })), 'ip'))
+    const r = await read(await handle(post(body({ topic: 'ACME' })), 'ip'))
     expect(r.status).toBe(200)
     expect(sendSpy).not.toHaveBeenCalled()
     expect(logs).toContainEqual({ event: 'lead_honeypot' })
   })
+
+  it('an empty honeypot sends normally', async () => {
+    const { handle, sendSpy } = setup()
+    expect((await handle(post(body({ topic: '' })), 'ip')).status).toBe(200)
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('recipient address (plain address only)', () => {
+  it.each(['"Bank" <victim@example.cz>', 'x<victim@example.cz>', 'a@example.cz,b@example.cz', 'a@example.cz;b@example.cz'])(
+    'rejects %j with 400 invalid_email and sends nothing',
+    async (email) => {
+      const { handle, sendSpy } = setup()
+      const r = await read(await handle(post(body({ email })), 'ip'))
+      expect(r.status).toBe(400)
+      expect(r.json).toEqual({ status: 'error', code: 'invalid_email' })
+      expect(sendSpy).not.toHaveBeenCalled()
+    },
+  )
 })
 
 describe('duplicate submissions', () => {

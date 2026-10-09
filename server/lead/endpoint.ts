@@ -3,11 +3,11 @@
  * Resend only when fully and explicitly configured) and fails closed on invalid configuration.
  * Used by the Vite dev middleware (server/devApi.ts) and the serverless entry (api/lead.ts).
  */
-import { loadLeadConfig, type LeadConfig } from '../config'
-import { MockEmailProvider } from '../email/mockProvider'
-import type { EmailProvider } from '../email/provider'
-import { ResendEmailProvider } from '../email/resendProvider'
-import { createLeadHandler, type LogEvent } from './handler'
+import { loadLeadConfig, type LeadConfig } from '../config.js'
+import { MockEmailProvider } from '../email/mockProvider.js'
+import type { EmailProvider } from '../email/provider.js'
+import { ResendEmailProvider } from '../email/resendProvider.js'
+import { createLeadHandler, type LogEvent } from './handler.js'
 
 export interface LeadEndpoint {
   handle: (request: Request, clientIp: string) => Promise<Response>
@@ -46,7 +46,7 @@ export function createLeadEndpoint(env: Record<string, string | undefined>, log:
   } else {
     mockOutbox = new MockEmailProvider()
     provider = mockOutbox
-    console.info('[lead] delivery mode: MOCK (nothing is sent; preview at /api/dev/outbox)')
+    console.info('[lead] delivery mode: MOCK (simulated sends – no email is sent)')
   }
 
   const handler = createLeadHandler({ config, provider, log })

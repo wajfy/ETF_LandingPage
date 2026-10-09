@@ -305,13 +305,25 @@ export const lead = {
     title: 'Hotovo ✓',
     sentTo: 'Srovnání a checklist jsme poslali na',
     notArrived: 'Nic nepřišlo? Mrkněte do složky Hromadné nebo Spam, případně',
+    sentToTail: '',
     resend: 'pošlete znovu',
     checklistLead: 'Mezitím tady je checklist:',
     backToTop: 'Prověřit další ETF ↑',
-    mockNotice:
-      'Testovací režim (mock): e-mail se ve skutečnosti neodeslal. Náhled zprávy najdete na /api/dev/outbox.',
+  },
+  /**
+   * Demo / mock delivery (no email provider connected): the same confirmation layout, but every line
+   * says the send was only simulated. Never claims that anything was sent or should be in the inbox.
+   */
+  successMock: {
+    title: 'Ukázka – e-mail se neodeslal',
+    sentTo: 'Odeslání srovnání a checklistu na adresu',
+    sentToTail: 'jsme jen nasimulovali. Žádný e-mail neodešel.',
+    notArrived: 'Ukázku můžete zopakovat –',
+    resend: 'pošlete znovu',
+    mockNotice: 'Ukázková verze stránky: odesílání e-mailů je vypnuté, zprávy se nikam neposílají.',
   },
   alreadySent: (email: string) => `✓ Srovnání a checklist už jste si nechali poslat na ${email}.`,
+  alreadySentMock: (email: string) => `✓ Odeslání na ${email} jste už vyzkoušeli. Šlo o ukázku, žádný e-mail neodešel.`,
 }
 
 /** The delivered email (wireframe ST5). Same figures, rounding and caveats as the page. */

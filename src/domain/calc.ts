@@ -12,7 +12,7 @@
  *
  * Shared by the page and (later) the email renderer. Rounding belongs to format.ts only.
  */
-import type { Fund } from './etfData'
+import type { Fund } from './etfData.js'
 
 /** US withholding with a valid W-8BEN (US–CZ treaty, research C1). */
 export const WITHHOLDING_TREATY = 0.15

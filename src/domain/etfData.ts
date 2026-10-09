@@ -5,7 +5,7 @@
  * validates the fields the app depends on, and exposes typed, alphabetically ordered funds.
  * It does not round or derive figures – see calc.ts (full precision) and format.ts (display).
  */
-import rawData from '../../research/etf-data.json'
+import rawData from '../../research/etf-data.json' with { type: 'json' }
 
 export type YieldSource =
   /** Unrounded: sum of the distributions in the past 365 days ÷ NAV. */

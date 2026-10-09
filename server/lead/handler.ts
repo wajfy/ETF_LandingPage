@@ -7,12 +7,12 @@
  * Provider timeouts/unknown failures → 504 "unconfirmed" (retry with the same requestId is safe:
  * the provider idempotency key is derived from it). Nothing personal is logged.
  */
-import { etfData } from '../../src/domain/etfData'
-import { renderLeadEmail, type LeadEmailInput, type RenderedEmail } from '../../src/email/leadEmail'
-import { validateLeadBody } from '../../src/lead/validation'
-import type { LeadConfig } from '../config'
-import type { EmailProvider } from '../email/provider'
-import { IntentStore, sha256Hex, SlidingWindowLimiter, type IntentResult } from './stores'
+import { etfData } from '../../src/domain/etfData.js'
+import { renderLeadEmail, type LeadEmailInput, type RenderedEmail } from '../../src/email/leadEmail.js'
+import { validateLeadBody } from '../../src/lead/validation.js'
+import type { LeadConfig } from '../config.js'
+import type { EmailProvider } from '../email/provider.js'
+import { IntentStore, sha256Hex, SlidingWindowLimiter, type IntentResult } from './stores.js'
 
 export const MAX_BODY_BYTES = 4096
 
@@ -102,7 +102,7 @@ export function createLeadHandler(deps: LeadDeps) {
     const req = v.value
 
     // Honeypot: real visitors never see the field. Answer like a success, send nothing.
-    if (req.company.trim() !== '') {
+    if (req.topic.trim() !== '') {
       log({ event: 'lead_honeypot' })
       return json(200, { status: 'sent', delivery: config.mode })
     }

@@ -3,10 +3,10 @@
  * into the strings the result card shows. Framework-free, so the future email renderer can
  * use exactly the same output as the page.
  */
-import { card, fundDescriptions, issuerShort } from '../content/cs'
-import { costLines, type CostLines } from './calc'
-import type { Fund } from './etfData'
-import { formatCzkAmount, formatCzkEstimate, formatDateCz, formatRate, formatTer, formatYield } from './format'
+import { card, fundDescriptions, issuerShort } from '../content/cs.js'
+import { costLines, type CostLines } from './calc.js'
+import type { Fund } from './etfData.js'
+import { formatCzkAmount, formatCzkEstimate, formatDateCz, formatRate, formatTer, formatYield } from './format.js'
 
 export interface ResultModel {
   ticker: string

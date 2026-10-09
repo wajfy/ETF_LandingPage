@@ -2,9 +2,9 @@
  * Comparison model for all funds – same data, calculation and display rounding as the result card
  * (and, later, the email table). Framework-free.
  */
-import { costLines, feeGapPctPoints } from './calc'
-import type { Fund } from './etfData'
-import { formatCzkEstimate, formatPctPoints, formatTer, formatYield } from './format'
+import { costLines, feeGapPctPoints } from './calc.js'
+import type { Fund } from './etfData.js'
+import { formatCzkEstimate, formatPctPoints, formatTer, formatYield } from './format.js'
 
 /** Funds tracking this index form the "same index, different fee" group (research B3). */
 export const SAME_INDEX_NAME = 'S&P 500 Index'

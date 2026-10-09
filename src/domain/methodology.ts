@@ -2,10 +2,10 @@
  * Methodology rows – shared by the page (Methodology section) and the email, so both state
  * exactly the same assumptions, dates and sources. Framework-free.
  */
-import { methodology as m } from '../content/cs'
-import { etfData } from './etfData'
-import { formatDateCz } from './format'
-import { parseWindow } from './result'
+import { methodology as m } from '../content/cs.js'
+import { etfData } from './etfData.js'
+import { formatDateCz } from './format.js'
+import { parseWindow } from './result.js'
 
 export interface MethodologyRow {
   label: string

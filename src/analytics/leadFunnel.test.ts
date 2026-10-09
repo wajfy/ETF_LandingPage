@@ -108,7 +108,7 @@ describe('lead funnel: submission vs confirmed provider acceptance', () => {
 })
 
 describe('lead funnel with the real client: failure paths never count as delivered', () => {
-  const body = { email: 'jana.novakova@example.cz', ticker: 'VOO', amountCzk: 100_000, conversionRatePct: 0.5, requestId: ID_A, company: '' }
+  const body = { email: 'jana.novakova@example.cz', ticker: 'VOO', amountCzk: 100_000, conversionRatePct: 0.5, requestId: ID_A, topic: '' }
   const respond = (status: number, json: unknown) => (async () => new Response(JSON.stringify(json), { status })) as unknown as typeof fetch
 
   async function run(fetchImpl: typeof fetch, timeoutMs?: number) {
