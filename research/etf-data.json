@@ -1,0 +1,476 @@
+{
+  "_meta": {
+    "purpose": "Verified fund data for the landing page and README. Every field has a source URL. Do not add values without a source.",
+    "accessed": "2026-10-08",
+    "status_legend": {
+      "verified": "Read directly from the issuer's official page or document on the access date",
+      "derived": "Computed from verified data (method stated in note)",
+      "unverified": "Not confirmed from a primary source - do not publish as fact"
+    },
+    "selection_status": "APPROVED 2026-10-08: VOO, SPY, IVV, SPYM, VTI, VT, SCHD. AGG dropped (off-topic for target audience); kept below for reference only.",
+    "second_pass": "2026-10-08: added trailing dividend yield (past 365 days) per fund; see claims-verification.md F2 for method and cross-checks.",
+    "exchange_rate": {
+      "source": "Czech National Bank (CNB) foreign exchange market rate (kurz devizoveho trhu) - the rate the Income Taxes Act points to (s. 38(5) ZDP)",
+      "url": "https://www.cnb.cz/cs/financni-trhy/devizovy-trh/kurzy-devizoveho-trhu/kurzy-devizoveho-trhu/denni_kurz.txt",
+      "date": "2026-10-08",
+      "sequence": 194,
+      "USD_CZK": 21.811,
+      "EUR_CZK": 24.4,
+      "note": "Used only to show USD values in CZK. Cost lines are % of a CZK amount and do not depend on it. Brokers convert at their own rate plus markup, not at the CNB rate."
+    },
+    "single_source_rule": "Before production this file is the ONLY source of fund data. The page (card, overview, methodology) and the email (table, your-check block) must load it and derive figures from it; no second copy. Calculations use the RAW inputs: distributions_per_share_usd / nav_usd (unrounded yield), or the issuer-published yield value for SPY and SPYM. Rounded fields (trailing_dividend_yield_pct.value for computed funds, us_withholding_drag_pct_per_year) are for reading only, not inputs.",
+    "rounding_rule": "CZK outputs: 3 significant digits, never finer than whole CZK, ties half-up (see claims-verification.md F3).",
+    "fund_order": "Alphabetical by ticker; the default selection is the first fund (IVV)."
+  },
+  "funds": [
+    {
+      "ticker": "VOO",
+      "name": "Vanguard S&P 500 ETF",
+      "role": "core",
+      "issuer": "Vanguard",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.03,
+        "as_of": "2026-04-28",
+        "status": "verified"
+      },
+      "index": {
+        "value": "S&P 500 Index",
+        "status": "verified"
+      },
+      "distribution": {
+        "value": "Distributing, quarterly dividends",
+        "status": "verified",
+        "note": "Payment history on issuer page shows quarterly dividends (Mar/Jun/Sep/Dec)."
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified",
+        "note": "US-registered fund; ISIN prefix US."
+      },
+      "inception": "2010-09-07",
+      "cusip": "922908363",
+      "isin": {
+        "value": "US9229083632",
+        "status": "derived",
+        "note": "Computed from CUSIP using ISO 6166 check digit; method validated against SSGA-published ISINs for SPY and SPYM."
+      },
+      "source": "https://investor.vanguard.com/investment-products/etfs/profile/voo",
+      "trailing_dividend_yield_pct": {
+        "value": 1.04,
+        "method": "sum of distributions with ex-date in past 365 days / NAV (SSGA definition)",
+        "window": "ex-dates 2025-10-08..2026-10-07",
+        "nav_date": "2026-10-07",
+        "distributions_per_share_usd": [
+          1.8226,
+          1.9622,
+          1.8724,
+          1.771
+        ],
+        "nav_usd": 714.56,
+        "status": "derived",
+        "source_note": "Vanguard fund page, Distributions table",
+        "caveat": "Past payouts, not a forecast."
+      },
+      "us_withholding_drag_pct_per_year": {
+        "at_15pct": 0.156,
+        "at_30pct": 0.312,
+        "status": "derived",
+        "note": "Tax, not a fee. 15% requires valid W-8BEN (IRS); may be credited against Czech tax (see claims-verification.md D3)."
+      }
+    },
+    {
+      "ticker": "SPY",
+      "name": "State Street SPDR S&P 500 ETF Trust",
+      "role": "core",
+      "issuer": "State Street Global Advisors",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.0945,
+        "as_of": "2026-10-08",
+        "status": "verified",
+        "note": "Gross expense ratio as shown on issuer page."
+      },
+      "index": {
+        "value": "S&P 500 Index",
+        "status": "verified"
+      },
+      "distribution": {
+        "value": "Distributing, quarterly",
+        "status": "verified"
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified"
+      },
+      "structure": {
+        "value": "Unit investment trust",
+        "status": "verified"
+      },
+      "inception": "1993-01-22",
+      "cusip": "78462F103",
+      "isin": {
+        "value": "US78462F1030",
+        "status": "verified"
+      },
+      "source": "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy",
+      "trailing_dividend_yield_pct": {
+        "value": 0.98,
+        "method": "sum of distributions with ex-date in past 365 days / NAV (SSGA definition)",
+        "window": "ex-dates 2025-10-08..2026-10-07",
+        "nav_date": "2026-10-07",
+        "distributions_per_share_usd": null,
+        "nav_usd": 777.39,
+        "status": "verified",
+        "source_note": "SSGA 'Fund Distribution Yield' (sum of distributions within past 365 days / NAV)",
+        "caveat": "Past payouts, not a forecast."
+      },
+      "us_withholding_drag_pct_per_year": {
+        "at_15pct": 0.147,
+        "at_30pct": 0.294,
+        "status": "derived",
+        "note": "Tax, not a fee. 15% requires valid W-8BEN (IRS); may be credited against Czech tax (see claims-verification.md D3)."
+      }
+    },
+    {
+      "ticker": "IVV",
+      "name": "iShares Core S&P 500 ETF",
+      "role": "core",
+      "issuer": "BlackRock iShares",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.03,
+        "as_of": null,
+        "status": "verified",
+        "note": "Page states 'Fees as stated in the prospectus' without an as-of date."
+      },
+      "index": {
+        "value": "S&P 500 Index",
+        "status": "verified"
+      },
+      "distribution": {
+        "value": "Distributing, quarterly",
+        "status": "verified"
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified"
+      },
+      "inception": "2000-05-15",
+      "cusip": "464287200",
+      "isin": {
+        "value": "US4642872000",
+        "status": "derived"
+      },
+      "source": "https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf",
+      "trailing_dividend_yield_pct": {
+        "value": 1.08,
+        "method": "sum of distributions with ex-date in past 365 days / NAV (SSGA definition)",
+        "window": "ex-dates 2025-10-08..2026-10-07",
+        "nav_date": "2026-10-07",
+        "distributions_per_share_usd": [
+          2.202607,
+          1.995653,
+          1.783517,
+          2.413592
+        ],
+        "nav_usd": 780.82,
+        "status": "derived",
+        "source_note": "iShares fund page, Distributions table; cross-check: issuer '12m Trailing Yield' 1.06% as of 2026-08-31",
+        "caveat": "Past payouts, not a forecast."
+      },
+      "us_withholding_drag_pct_per_year": {
+        "at_15pct": 0.162,
+        "at_30pct": 0.324,
+        "status": "derived",
+        "note": "Tax, not a fee. 15% requires valid W-8BEN (IRS); may be credited against Czech tax (see claims-verification.md D3)."
+      }
+    },
+    {
+      "ticker": "VTI",
+      "name": "Vanguard Morningstar Total Stock Market ETF",
+      "role": "core",
+      "issuer": "Vanguard",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.03,
+        "as_of": "2026-04-28",
+        "status": "verified"
+      },
+      "index": {
+        "value": "Morningstar US Total Market Index",
+        "status": "verified",
+        "note": "Fund name now includes 'Morningstar'. Older sources cite the CRSP US Total Market Index - those are outdated. The issuer's spliced-benchmark footnote does not state the CRSP period; switch date unconfirmed."
+      },
+      "distribution": {
+        "value": "Distributing, quarterly dividends",
+        "status": "verified"
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified"
+      },
+      "inception": "2001-05-24",
+      "cusip": "922908769",
+      "isin": {
+        "value": "US9229087690",
+        "status": "derived"
+      },
+      "source": "https://investor.vanguard.com/investment-products/etfs/profile/vti",
+      "trailing_dividend_yield_pct": {
+        "value": 1.04,
+        "method": "sum of distributions with ex-date in past 365 days / NAV (SSGA definition)",
+        "window": "ex-dates 2025-10-08..2026-10-07",
+        "nav_date": "2026-10-07",
+        "distributions_per_share_usd": [
+          0.9555,
+          1.0437,
+          0.9982,
+          0.9508
+        ],
+        "nav_usd": 381.13,
+        "status": "derived",
+        "source_note": "Vanguard fund page, Distributions table",
+        "caveat": "Past payouts, not a forecast."
+      },
+      "us_withholding_drag_pct_per_year": {
+        "at_15pct": 0.156,
+        "at_30pct": 0.312,
+        "status": "derived",
+        "note": "Tax, not a fee. 15% requires valid W-8BEN (IRS); may be credited against Czech tax (see claims-verification.md D3)."
+      }
+    },
+    {
+      "ticker": "VT",
+      "name": "Vanguard Total World Stock ETF",
+      "role": "core",
+      "issuer": "Vanguard",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.06,
+        "as_of": "2026-02-27",
+        "status": "verified"
+      },
+      "index": {
+        "value": "FTSE Global All Cap Index",
+        "status": "verified"
+      },
+      "distribution": {
+        "value": "Distributing, quarterly dividends",
+        "status": "verified"
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified"
+      },
+      "inception": "2008-06-24",
+      "cusip": "922042742",
+      "isin": {
+        "value": "US9220427424",
+        "status": "derived"
+      },
+      "source": "https://investor.vanguard.com/investment-products/etfs/profile/vt",
+      "trailing_dividend_yield_pct": {
+        "value": 1.51,
+        "method": "sum of distributions with ex-date in past 365 days / NAV (SSGA definition)",
+        "window": "ex-dates 2025-10-08..2026-10-07",
+        "nav_date": "2026-10-07",
+        "distributions_per_share_usd": [
+          0.4084,
+          0.5627,
+          0.3272,
+          1.1152
+        ],
+        "nav_usd": 159.51,
+        "status": "derived",
+        "source_note": "Vanguard fund page, Distributions table",
+        "caveat": "Past payouts, not a forecast."
+      },
+      "us_withholding_drag_pct_per_year": {
+        "at_15pct": 0.226,
+        "at_30pct": 0.453,
+        "status": "derived",
+        "note": "Tax, not a fee. 15% requires valid W-8BEN (IRS); may be credited against Czech tax (see claims-verification.md D3)."
+      }
+    },
+    {
+      "ticker": "SCHD",
+      "name": "Schwab U.S. Dividend Equity ETF",
+      "role": "core",
+      "issuer": "Schwab Asset Management",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.06,
+        "as_of": "2026-10-08",
+        "status": "verified",
+        "note": "Shown as 0.060% total expense ratio on access date."
+      },
+      "index": {
+        "value": "Dow Jones U.S. Dividend 100 Index",
+        "status": "verified"
+      },
+      "distribution": {
+        "value": "Distributing, quarterly",
+        "status": "verified",
+        "note": "Issuer distribution CSV shows quarterly payments since 2016."
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified"
+      },
+      "inception": "2011-10-20",
+      "cusip": "808524797",
+      "isin": {
+        "value": "US8085247976",
+        "status": "derived"
+      },
+      "source": "https://www.schwabassetmanagement.com/products/schd",
+      "source_distributions": "https://www.schwabassetmanagement.com/sites/g/files/eyrktu361/files/product_files/SCHD/SCHD_Fund_Distributions.CSV",
+      "trailing_dividend_yield_pct": {
+        "value": 3.23,
+        "method": "sum of distributions with ex-date in past 365 days / NAV (SSGA definition)",
+        "window": "ex-dates 2025-10-08..2026-10-07",
+        "nav_date": "2026-10-07",
+        "distributions_per_share_usd": [
+          0.2782,
+          0.2569,
+          0.2525,
+          0.2665
+        ],
+        "nav_usd": 32.64,
+        "status": "derived",
+        "source_note": "Schwab distributions CSV; cross-check: issuer 'Distribution Yield (TTM)' 3.00% as of 2026-08-31",
+        "caveat": "Past payouts, not a forecast."
+      },
+      "us_withholding_drag_pct_per_year": {
+        "at_15pct": 0.484,
+        "at_30pct": 0.969,
+        "status": "derived",
+        "note": "Tax, not a fee. 15% requires valid W-8BEN (IRS); may be credited against Czech tax (see claims-verification.md D3)."
+      }
+    },
+    {
+      "ticker": "SPYM",
+      "name": "State Street SPDR Portfolio S&P 500 ETF",
+      "role": "core",
+      "issuer": "State Street Global Advisors",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.02,
+        "as_of": "2026-10-08",
+        "status": "verified"
+      },
+      "index": {
+        "value": "S&P 500 Index",
+        "status": "verified"
+      },
+      "distribution": {
+        "value": "Distributing, quarterly",
+        "status": "verified"
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified"
+      },
+      "inception": "2005-11-08",
+      "cusip": "78464A854",
+      "isin": {
+        "value": "US78464A8541",
+        "status": "verified"
+      },
+      "note": "Formerly ticker SPLG; renamed to SPYM effective 2025-10-31 (SSGA notice). Older articles use SPLG.",
+      "source": "https://www.ssga.com/us/en/intermediary/etfs/state-street-spdr-portfolio-sp-500-etf-spym",
+      "source_ticker_change": "https://www.ssga.com/library-content/products/fund-docs/etfs/us/information-schedules/ap-notice/notice-to-aps-ticker-fund-name-and-benchmark-index-name-changes-10-31-25.pdf",
+      "trailing_dividend_yield_pct": {
+        "value": 1.0,
+        "method": "sum of distributions with ex-date in past 365 days / NAV (SSGA definition)",
+        "window": "ex-dates 2025-10-08..2026-10-07",
+        "nav_date": "2026-10-07",
+        "distributions_per_share_usd": null,
+        "nav_usd": null,
+        "status": "verified",
+        "source_note": "SSGA 'Fund Distribution Yield'",
+        "caveat": "Past payouts, not a forecast."
+      },
+      "us_withholding_drag_pct_per_year": {
+        "at_15pct": 0.15,
+        "at_30pct": 0.3,
+        "status": "derived",
+        "note": "Tax, not a fee. 15% requires valid W-8BEN (IRS); may be credited against Czech tax (see claims-verification.md D3)."
+      }
+    },
+    {
+      "ticker": "AGG",
+      "name": "iShares Core U.S. Aggregate Bond ETF",
+      "role": "dropped",
+      "issuer": "BlackRock iShares",
+      "exchange": {
+        "value": "NYSE Arca",
+        "status": "verified"
+      },
+      "expense_ratio_pct": {
+        "value": 0.03,
+        "as_of": null,
+        "status": "verified"
+      },
+      "index": {
+        "value": "Bloomberg US Aggregate Bond Index",
+        "status": "verified"
+      },
+      "distribution": {
+        "value": "Distributing, monthly",
+        "status": "verified"
+      },
+      "domicile": {
+        "value": "United States",
+        "status": "verified"
+      },
+      "inception": "2003-09-22",
+      "cusip": "464287226",
+      "isin": {
+        "value": "US4642872265",
+        "status": "derived"
+      },
+      "source": "https://www.ishares.com/us/products/239458/ishares-core-total-us-bond-market-etf"
+    }
+  ],
+  "excluded": [
+    {
+      "ticker": "QQQ",
+      "reason": "Listed on Nasdaq, not NYSE/NYSE Arca - outside scope. Popular, so visitors may ask about it.",
+      "facts": "Converted from unit investment trust to open-end ETF on 2025-12-22; expense ratio cut from 0.20% to 0.18%.",
+      "status": "Expense ratio 0.18% verified on issuer site; Nasdaq listing and conversion date from secondary sources (etf.com, nasdaq.com) - not from an issuer document.",
+      "sources": [
+        "https://www.invesco.com/qqq-etf/en/home.html",
+        "https://www.etf.com/sections/features/invesco-wins-approval-convert-qqq-standard-etf",
+        "https://www.nasdaq.com/articles/invesco-shareholders-approve-qqq-reclassification-open-end-etf"
+      ]
+    },
+    {
+      "ticker": "VXUS, BND",
+      "reason": "Believed to be Nasdaq-listed (not checked). Excluded pending verification; not needed for the core set.",
+      "status": "unverified"
+    }
+  ]
+}

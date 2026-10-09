@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prověrka ETF – wireframe</title>
+<style>
+  :root {
+    --ink: #1d1d1f; --ink-2: #55555b; --ink-3: #8a8a90;
+    --line: #c9c9ce; --line-2: #e4e4e8; --fill: #f2f2f4; --paper: #ffffff;
+    --board: #e9e9ec; --note: #fffbe6; --note-line: #e8d98a; --mark: #2b2b2f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--board); color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: inherit; }
+  .top { max-width: 1120px; margin: 0 auto; padding: 24px 16px 8px; }
+  .top h1 { font-size: 20px; margin: 0 0 4px; }
+  .top p { margin: 0 0 6px; color: var(--ink-2); max-width: 760px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--line); }
+  .legend .l-ph::before { border-style: dashed; }
+  .legend .l-note::before { background: var(--note); border-color: var(--note-line); }
+
+  .board { max-width: 1120px; margin: 0 auto; padding: 8px 16px 120px; }
+  .row { display: grid; grid-template-columns: 390px 1fr; gap: 0 28px; align-items: start; }
+  .phone { background: var(--paper); border-left: 1px solid var(--line); border-right: 1px solid var(--line); padding: 20px 16px; position: relative; }
+  .row:first-of-type .phone { border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; padding-top: 28px; }
+  .row.last .phone { border-bottom: 1px solid var(--line); border-radius: 0 0 22px 22px; }
+  .tag { position: absolute; top: 6px; right: 10px; font: 600 10px/1 ui-monospace, Consolas, monospace; color: var(--ink-3); letter-spacing: .04em; }
+  .row + .row .phone { border-top: 1px dashed var(--line-2); }
+  .note { background: var(--note); border: 1px solid var(--note-line); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #3d3a2a; margin: 14px 0; }
+  .note h4 { margin: 0 0 6px; font-size: 13px; }
+  .note ul { margin: 4px 0 0; padding-left: 18px; }
+  .note li { margin: 2px 0; }
+  .note code { font-size: 12px; background: rgba(0,0,0,.05); padding: 0 3px; border-radius: 3px; }
+  .note .k { font-weight: 600; }
+  @media (max-width: 860px) {
+    .row { grid-template-columns: 1fr; }
+    .phone { max-width: 390px; width: 100%; margin: 0 auto; }
+    .note { max-width: 390px; width: 100%; margin: 0 auto 0; border-radius: 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  }
+
+  /* --- wireframe primitives --- */
+  /* First-screen spacing (final wireframe pass): hero and card read as one block, so the
+     chips→card gap is 16 px instead of 40 px, and a few margins are tightened slightly. */
+  #s1 { padding-bottom: 8px; }
+  #s2 { padding-top: 8px; }
+  #s1 .lead { margin-bottom: 12px; }
+  #s1 .lbl { margin-top: 10px; }
+  #card h4 { margin-top: 10px; }
+  .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 0 0 8px; }
+  h2.h1 { font-size: 27px; line-height: 1.15; margin: 0 0 10px; letter-spacing: -.01em; }
+  .lead { margin: 0 0 18px; color: var(--ink-2); }
+  h3 { font-size: 19px; margin: 0 0 8px; line-height: 1.25; }
+  .lbl { font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; min-height: 40px; }
+  #amtSel { font: inherit; font-weight: 700; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-height: 36px; background: var(--paper); }
+  .chip[aria-pressed="true"] { background: var(--mark); border-color: var(--mark); color: #fff; }
+  .hint { font-size: 12px; color: var(--ink-3); margin: 6px 0 0; }
+  .custom { display: none; margin-top: 8px; }
+  .custom.on { display: flex; gap: 6px; align-items: center; }
+  .custom input { width: 150px; }
+  input[type="email"], input[type="number"] { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; min-height: 44px; }
+
+  .card { border: 1.5px solid var(--ink); border-radius: 14px; padding: 14px; }
+  .card-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .tick { font-size: 24px; font-weight: 700; }
+  .fname { color: var(--ink-2); font-size: 14px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 4px; }
+  .facts span { font-size: 11.5px; border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; color: var(--ink-2); }
+  .card h4 { font-size: 13px; margin: 14px 0 4px; color: var(--ink-2); font-weight: 600; }
+  .line { border-top: 1px solid var(--line-2); padding: 12px 0; }
+  .line-top { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: baseline; }
+  .line-name { font-weight: 600; }
+  .line-sub { font-size: 12.5px; color: var(--ink-2); }
+  .line-val { text-align: right; font-weight: 700; font-size: 17px; white-space: nowrap; }
+  .line-unit { display: block; font-weight: 400; font-size: 12px; color: var(--ink-2); }
+  .line-note { font-size: 12.5px; color: var(--ink-2); margin: 6px 0 0; }
+  .slider { margin-top: 8px; }
+  .slider label { font-size: 12.5px; display: flex; justify-content: space-between; }
+  .slider input { width: 100%; }
+  .sum-note { font-size: 12.5px; background: var(--fill); border-radius: 8px; padding: 8px 10px; margin: 2px 0 10px; }
+  .box { border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .box strong { display: block; margin-bottom: 2px; }
+  .fine { font-size: 11.5px; color: var(--ink-3); margin: 10px 0 0; }
+
+  .form h3 { margin-bottom: 6px; }
+  .form ul { padding-left: 18px; margin: 6px 0 12px; }
+  .form label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
+  .form input[type="email"] { width: 100%; }
+  .btn { display: block; width: 100%; margin-top: 8px; min-height: 48px; border-radius: 10px; border: 0; background: var(--mark); color: #fff; font: 600 16px/1 inherit; font-family: inherit; cursor: pointer; }
+  .btn.ghost { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+  .err { color: #a11; font-size: 13px; margin: 6px 0 0; display: none; }
+  .err.on { display: block; }
+  .micro { font-size: 12px; color: var(--ink-2); margin: 8px 0 0; }
+  .confirm { display: none; }
+  .confirm.on { display: block; }
+  .ok { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+
+  .list { border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; margin: 8px 0 14px; }
+  .list button { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; width: 100%; padding: 11px 12px; border-top: 1px solid var(--line-2); cursor: pointer; align-items: baseline; }
+  .list button:first-child { border-top: 0; }
+  .list button:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px; }
+  .list .t { font-weight: 700; }
+  .list .d { font-size: 13px; color: var(--ink-2); }
+  .list .f { font-size: 13px; text-align: right; }
+
+  details { border-top: 1px solid var(--line-2); padding: 10px 0; }
+  details:last-of-type { border-bottom: 1px solid var(--line-2); }
+  summary { font-weight: 600; cursor: pointer; }
+  details p { margin: 8px 0 0; font-size: 14px; color: var(--ink-2); }
+  .src { font-size: 12px; color: var(--ink-3); }
+
+  ol.check { padding-left: 20px; margin: 8px 0; }
+  ol.check li { margin: 0 0 8px; font-size: 14px; }
+  ol.check li b { display: block; }
+
+  .meth p, .meth li { font-size: 13px; color: var(--ink-2); }
+  .meth ul { padding-left: 18px; }
+  .footer { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; font-size: 12px; color: var(--ink-2); }
+  .ph { border: 1.5px dashed var(--line); border-radius: 10px; padding: 12px; color: var(--ink-2); background: repeating-linear-gradient(135deg, transparent 0 8px, rgba(0,0,0,.025) 8px 16px); }
+
+  .states { max-width: 1120px; margin: 40px auto 0; padding: 0 16px; }
+  .states h2 { font-size: 18px; margin: 0 0 4px; }
+  .states > p { color: var(--ink-2); margin: 0 0 14px; max-width: 760px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+  .frame { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .frame .ftitle { font: 600 11px/1 ui-monospace, Consolas, monospace; color: var(--ink-3); margin: 0 0 10px; letter-spacing: .04em; }
+  .sticky { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1.5px solid var(--ink); border-radius: 12px; padding: 10px 12px; background: var(--paper); }
+  .sticky span { font-size: 13px; color: var(--ink-2); }
+  .sticky b { white-space: nowrap; }
+  .mail { font-size: 13px; }
+  .mail .hdr { border-bottom: 1px solid var(--line-2); padding-bottom: 8px; margin-bottom: 8px; color: var(--ink-2); }
+  .mail ol { padding-left: 18px; }
+  table.mini { border-collapse: collapse; width: 100%; font-size: 11.5px; margin: 6px 0; }
+  table.mini th, table.mini td { border: 1px solid var(--line-2); padding: 3px 4px; text-align: left; }
+
+  .log { position: fixed; right: 12px; bottom: 12px; width: 300px; max-height: 40vh; overflow: auto; background: #1d1d1f; color: #e8e8ea; border-radius: 10px; font: 11.5px/1.4 ui-monospace, Consolas, monospace; padding: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.25); z-index: 10; }
+  .log b { color: #fff; display: block; margin-bottom: 4px; font-family: system-ui, sans-serif; font-size: 12px; }
+  .log div { border-top: 1px solid #333; padding: 3px 0; overflow-wrap: anywhere; }
+  .log.min div { display: none; }
+  .log button { float: right; background: none; border: 0; color: #aaa; cursor: pointer; font: inherit; }
+  @media (max-width: 860px) { .log { width: auto; left: 12px; max-height: 28vh; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Prověrka ETF: mobile-first wireframe (prototype v1)</h1>
+  <p>Low-fidelity layout for reviewing hierarchy, Czech copy, interactions and the path from ad → result → email. It isn't a visual design. Numbers are computed live from a <em>wireframe-only copy</em> of the raw inputs in <code>research/etf-data.json</code> (as of 7–8 Oct 2026). In production that file must be the single source, with no second copy. The form is simulated: nothing is sent and no data is stored.</p>
+  <div class="legend">
+    <span>Phone column = what the visitor sees (Czech copy for review)</span>
+    <span class="l-note">Yellow = reviewer notes (English)</span>
+    <span class="l-ph">Dashed = placeholder / undecided</span>
+    <span>Dark box bottom-right = analytics event queue (local only; sent nowhere)</span>
+  </div>
+</header>
+
+<main class="board">
+
+  <!-- F0 AD -->
+  <section class="row">
+    <div class="phone">
+      <span class="tag">F0 · REKLAMA</span>
+      <div class="ph">
+        <strong>Reklama na sociálních sítích</strong><br>
+        2 varianty – zatím nerozhodnuto.<br>
+        Klik vede na tuto stránku s UTM parametry a <code>variant_id</code>.
+      </div>
+    </div>
+    <aside class="note">
+      <h4>F0 · Ad → landing (continuity rule)</h4>
+      <ul>
+        <li>Ad variants aren't decided yet (out of scope).</li>
+        <li><span class="k">Whatever the ad says, S1 must deliver it on the first screen</span>: "the fund fee isn't the only item; pick an ETF; see it in CZK".</li>
+        <li>The ad must not promise a "real/total cost", rank funds, or quote fees in a way that compares different units (README §2).</li>
+        <li>Event: <code>page_view</code> with <code>utm_*</code>, <code>variant_id</code>, device and in-app browser flag.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- S1 HERO -->
+  <section class="row">
+    <div class="phone" id="s1">
+      <span class="tag">S1 · HERO + VÝBĚR</span>
+      <p class="eyebrow">Prověrka ETF · 7 fondů z amerických burz</p>
+      <h2 class="h1">Poplatek fondu je jen jedna položka.</h2>
+      <p class="lead">Vyberte ETF a uvidíte v korunách, co dalšího může hrát roli.</p>
+
+      <div class="lbl" id="lbl-etf">Vyberte ETF</div>
+      <div class="chips" role="group" aria-labelledby="lbl-etf" id="etfChips"></div>
+    </div>
+    <aside class="note">
+      <h4>S1 · Hero + inputs (first screen)</h4>
+      <ul>
+        <li><span class="k">Goal:</span> continue the ad promise and show a result <em>without any typing</em>. On a 375×667 screen the H1, the chips and the top of the card (S2) should all be visible.</li>
+        <li>Default: <span class="k">IVV</span> (the first fund alphabetically) + 100 000 Kč. The rule is stated in one small grey line in the card: „Předvybráno podle abecedy – nic nedoporučujeme.“ ("Preselected alphabetically – we don't recommend anything."; kept to one line so the first figure stays on the first screen). It hides after the first selection. Chips, overview and email table all use the same alphabetical order.</li>
+        <li>Chip order follows the data file, <span class="k">not fees</span>. No "best", "cheapest" or "popular" badges (research G4).</li>
+        <li>Tapping a chip updates S2 instantly. No submit button.</li>
+        <li><span class="k">Layout fixes from testing at realistic viewports</span> (iPhone SE Safari ≈ 375×548 up to 390×664): the amount is an inline selector in the card heading; the fund-fact tags sit below the three lines; the lead is shortened to one sentence (the three items are named on the card itself); the default-rule hint sits in the card on one line and hides after the first selection; the hero and the card are spaced as one block (16 px gap).</li>
+        <li>Events: <code>etf_select</code> {ticker, previous, count}, <code>first_screen_engaged</code>.</li>
+        <li>Headline wording rules: README §2 (no "total cost", <em>může</em> not <em>platíte</em>, no fee number in the H1).</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- S2 CARD -->
+  <section class="row">
+    <div class="phone" id="s2">
+      <span class="tag">S2 · VÝSLEDEK</span>
+      <div class="card" id="card" aria-live="polite">
+        <div class="card-head"><span class="tick" id="cTick">IVV</span><span class="fname" id="cName"></span></div>
+        <p class="line-note" id="cDesc" style="margin-top:4px"></p>
+        <p class="hint" id="cExample" style="margin:2px 0 0">Předvybráno podle abecedy – nic nedoporučujeme.</p>
+
+        <h4>Co může hrát roli při investici
+          <select id="amtSel" aria-label="Částka investice">
+            <option value="10000">10 000 Kč</option>
+            <option value="50000">50 000 Kč</option>
+            <option value="100000" selected>100 000 Kč</option>
+            <option value="custom">jiná částka…</option>
+          </select>
+          <span style="font-weight:400">(orientačně, 1 rok)</span></h4>
+        <div class="custom" id="customWrap">
+          <input type="number" id="customAmt" inputmode="numeric" min="1000" max="10000000" step="1000" placeholder="např. 25000" aria-label="Vlastní částka v korunách" aria-describedby="customErr"> <span>Kč</span>
+        </div>
+        <p class="err" id="customErr" role="alert">Zadejte částku od 1 000 do 10 000 000 Kč.</p>
+
+        <div class="line">
+          <div class="line-top">
+            <div><div class="line-name">Poplatek fondu</div><div class="line-sub" id="cTerSub"></div></div>
+            <div class="line-val"><span id="cFee"></span><span class="line-unit">ročně</span></div>
+          </div>
+          <p class="line-note">Strhává se průběžně z hodnoty fondu – každý rok, dokud ETF držíte.</p>
+        </div>
+
+        <div class="line">
+          <div class="line-top">
+            <div><div class="line-name">Směna korun na dolary</div><div class="line-sub" id="cRateSub"></div></div>
+            <div class="line-val"><span id="cConv"></span><span class="line-unit">jednorázově</span></div>
+          </div>
+          <p class="line-note">Platí se při převodu Kč na USD – podle brokera při nákupu, nebo už při vkladu na dolarový účet. Při prodeji a převodu zpět na koruny se platí znovu.</p>
+          <div class="slider">
+            <label for="rate"><span>Upravte sazbu podle svého brokera</span><span id="rateOut"></span></label>
+            <input type="range" id="rate" min="0" max="1" step="0.05" value="0.5">
+            <div class="hint" style="display:flex;justify-content:space-between;margin:0"><span>0 %</span><span>modelová sazba</span><span>1 %</span></div>
+          </div>
+        </div>
+
+        <div class="line">
+          <div class="line-top">
+            <div><div class="line-name">Daň z dividend v USA</div><div class="line-sub">15 % z dividend · historický příklad</div></div>
+            <div class="line-val"><span id="cWht"></span><span class="line-unit">ročně, přibližně</span></div>
+          </div>
+          <p class="line-note" id="cWhtNote"></p>
+        </div>
+
+        <p class="sum-note">Položky záměrně nesčítáme: jedna se platí každý rok, druhá jednorázově při směně a třetí je daň.</p>
+        <div class="facts" id="cFacts"></div>
+
+        <div class="box">
+          <strong>Koupíte ho z Česka?</strong>
+          Většina evropských brokerů retailovým klientům nákup ETF registrovaných v USA neumožní. Jejich emitenti obvykle nevydávají dokument KID, který evropská regulace PRIIPs pro prodej drobným investorům vyžaduje. Omezení se týká brokera, ne vás.
+        </div>
+
+        <p class="fine" id="cStamp"></p>
+      </div>
+    </div>
+    <aside class="note">
+      <h4>S2 · Reality-check card</h4>
+      <ul>
+        <li><span class="k">Three lines, same order and same visual weight for every fund.</span> No total, no highlighting of the "biggest" line, no ratios, no "N years of fees" (research B0, B4).</li>
+        <li>Formulas (1 year, no growth, constant FX). <span class="k">Each line depends only on its own inputs</span> (review fix 2026-10-09):
+          <br>fee = amount × TER &nbsp;(inputs: amount, ETF)
+          <br>conversion = amount × model rate &nbsp;(inputs: amount, rate)
+          <br>tax = amount × past 365-day yield × 15 % &nbsp;(inputs: amount, ETF); 30 % shown in the note
+          <br>Simplification: fee and tax use the full amount, not "amount minus conversion". The difference is at most 1 % of each figure.</li>
+        <li>Amount: an inline selector in the heading (10 000 / 50 000 / 100 000 Kč / other amount → numeric input 1 000–10 000 000 Kč). Event: <code>amount_change</code> {bucket, kind}.</li>
+        <li>The conversion slider (0–1 %, step 0.05, default 0.5 %) is a <span class="k">model rate</span>. No broker named on the card; XTB is cited only in the methodology (S7). Event: <code>rate_change</code> {bucket} on release.</li>
+        <li>The dividend tax is labelled <em>daň</em> (tax), never <em>poplatek</em> (fee). Its note says, in this order: (1) a simplified example from the past, not a forecast; (2) what it assumes (same payouts as the last 12 months, 15 % with W-8BEN); (3) the 30 % case; (4) it's a tax, not a fund fee; (5) it isn't a calculation of the visitor's own tax (D3).</li>
+        <li><span class="k">Precision (final pass):</span>
+          <ul>
+            <li>The calculation uses the <em>unrounded</em> historical yield. The yield is displayed to 2 decimal places ("přibližně 1,04 %"), and the tax line says it's approximate ("ročně, přibližně").</li>
+            <li>CZK figures (all three lines and the email table) use one rule: 3 significant digits, never finer than whole Kč, ties half-up (155,93 → ≈ 156; 94,50 → ≈ 95; 15 593 → ≈ 15 600).</li>
+            <li>Because the tax uses the unrounded yield, recalculating it from the <em>displayed</em> 2-decimal yield can give a slightly different figure. Checked across all 7 funds and 1 000–10 000 000 Kč: the gap is <span class="k">not</span> bounded by 1 Kč or by one rounding step (e.g. IVV at 6 350 000 Kč: shown ≈ 10 200 Kč, recalculated ≈ 10 300 Kč). The copy therefore makes no precision promise beyond "přibližně" (approximately).</li>
+            <li>The model rate shows only the decimals the slider uses. TERs are shown exactly as the issuer publishes them.</li>
+          </ul></li>
+        <li>The KID box is identical for all 7 funds. There's no per-fund "has no KID" claim (A1).</li>
+        <li>The data stamp shows each issuer's own TER date (they differ) and the dividend window.</li>
+        <li>Events: <code>result_view</code> (≥50 % visible ≥1 s) {ticker, amount bucket}. The sticky CTA (states frame) becomes eligible after this.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- S3 INLINE FORM -->
+  <section class="row">
+    <div class="phone" id="s3">
+      <span class="tag">S3 · E-MAIL (INLINE)</span>
+      <div class="form" data-pos="inline">
+        <div class="formBody">
+          <h3>Chcete to mít po ruce, až budete u brokera?</h3>
+          <p style="margin:0">Pošleme vám e-mailem:</p>
+          <ul>
+            <li>srovnání všech 7 ETF vedle sebe, se zdroji,</li>
+            <li>vaši prověrku: <span class="mySel">IVV · 100 000 Kč · směna 0,5 %</span>,</li>
+            <li>checklist před nákupem: dostupnost, směna, W-8BEN, daně při prodeji.</li>
+          </ul>
+          <form novalidate>
+            <label for="em1">Váš e-mail</label>
+            <input type="email" id="em1" autocomplete="email" placeholder="jmeno@email.cz">
+            <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+            <p class="err" role="alert"></p>
+            <button class="btn" type="submit">Poslat srovnání</button>
+          </form>
+          <p class="micro">E-mail použijeme jen k odeslání tohoto srovnání. Žádný newsletter ani další zprávy. <a href="#s7">Jak nakládáme s údaji</a></p>
+        </div>
+        <div class="confirm" role="status"></div>
+      </div>
+    </div>
+    <aside class="note">
+      <h4>S3 · Primary conversion point</h4>
+      <ul>
+        <li>Placed <span class="k">directly after the first result</span>, the moment value is visible (README page-structure rationale).</li>
+        <li>One visible field. A hidden honeypot (<code>company</code>) for bots. Hidden context: ticker, amount bucket, rate bucket, UTM, variant. <span class="k">The email never goes to analytics or into URLs.</span></li>
+        <li>No consent checkbox: no marketing emails (working assumption 3). No double opt-in (9b).</li>
+        <li>"Your check" line updates live with the selection.</li>
+        <li>On submit: inline validation → <span class="k">simulated</span> send (no request, no storage; a "WIREFRAME ONLY" banner says so) → confirmation replaces the form and shows the full checklist immediately (try it).</li>
+        <li><span class="k">Production needs a real sending integration</span>: email provider, sending domain with SPF/DKIM, storage and retention (README §8, §9c).</li>
+        <li>Events: <code>form_view</code>, <code>form_start</code>, <code>form_submit</code>, <code>form_error</code> {type}, <code>lead_success</code> (server-confirmed in production), <code>confirmation_view</code>; all with {position: inline}.</li>
+        <li>The privacy link text is a placeholder until the operator and the privacy notice exist (launch blocker).</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- S4 OVERVIEW -->
+  <section class="row">
+    <div class="phone" id="s4">
+      <span class="tag">S4 · PŘEHLED 7 ETF</span>
+      <h3>Stejný index, jiný poplatek</h3>
+      <p style="margin:0;color:var(--ink-2);font-size:14px" id="sameIdxText">Tyto čtyři fondy sledují stejný index S&amp;P 500.</p>
+      <div class="list" id="listSame"></div>
+
+      <h3>Jiný index, jiný obsah</h3>
+      <p style="margin:0;color:var(--ink-2);font-size:14px">Tyhle fondy nedrží totéž – liší se hlavně tím, do čeho investují, ne jen poplatkem.</p>
+      <div class="list" id="listOther"></div>
+      <p class="hint">Pořadí není žebříček. Klepnutím fond prověříte nahoře.</p>
+    </div>
+    <aside class="note">
+      <h4>S4 · Overview (exploration, not ranking)</h4>
+      <ul>
+        <li>Shows the research point: for the same index, the fee gap is small (B3). Fund content differs more between indexes.</li>
+        <li><span class="k">Order is alphabetical within each group</span>, never by fee. No badges. Index labels are visible, so the comparison is explained (ESMA34-45-1272 para 33 as best practice, G4).</li>
+        <li>Tapping a row selects the fund in S1 and scrolls back to the card (S2).</li>
+        <li>Events: <code>compare_view</code>, <code>etf_select</code> {source: overview}.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- S5 EXPLAINERS -->
+  <section class="row">
+    <div class="phone" id="s5">
+      <span class="tag">S5 · VYSVĚTLENÍ</span>
+      <h3>Co se v tabulce poplatků neukáže</h3>
+      <details data-topic="three-lines">
+        <summary>Proč tři položky nesčítáme?</summary>
+        <p>Každá je jiného druhu. Poplatek fondu se platí každý rok z celé investice. Směna se platí jen při převodu měny – a jen tehdy, když k němu dochází. Daň z dividend není cena fondu, ale daň z příjmu, kterou lze v ČR obecně započíst. Která položka je pro vás větší, záleží na brokerovi, měně účtu, době držení a vaší daňové situaci.</p>
+      </details>
+      <details data-topic="w8ben">
+        <summary>Co je formulář W-8BEN?</summary>
+        <p>Americký formulář, kterým potvrzujete, že jste daňový rezident jiné země. Vyplňuje se u brokera – neposílá se americkému daňovému úřadu (IRS). Daňovým rezidentům ČR díky smlouvě o zamezení dvojího zdanění snižuje daň z amerických dividend z 30 % na 15 %. Platí do konce třetího kalendářního roku po podpisu, pokud se mezitím nezmění vaše okolnosti.</p>
+        <p class="src">Zdroj: IRS – About Form W-8BEN; Instructions for Form W-8BEN (10/2021); smlouva ČR–USA, č. 32/1994 Sb., čl. 10.</p>
+      </details>
+      <details data-topic="kid">
+        <summary>Proč evropští brokeři americká ETF obvykle nenabízejí?</summary>
+        <p>Evropské nařízení PRIIPs vyžaduje, aby prodejce předal drobnému investorovi před nákupem sdělení klíčových informací (KID). Emitenti amerických ETF ho obvykle nevydávají, a tak broker nákup zablokuje. Omezení dopadá na brokera, ne na investora, a netýká se profesionálních klientů.</p>
+        <p class="src">Zdroj: nařízení (EU) č. 1286/2014, čl. 5 a 13; FAQ Interactive Brokers „PRIIPs regulation“.</p>
+      </details>
+      <details data-topic="cz-sale">
+        <summary>Kdy se v ČR neplatí daň z prodeje?</summary>
+        <p>Příjem z prodeje cenných papírů je osvobozen, pokud mezi nákupem a prodejem uplynuly víc než 3 roky – počítá se u každého nákupu zvlášť. Osvobozený je i tehdy, když vaše celkové příjmy z prodeje cenných papírů za rok nepřesáhnou 100 000 Kč – počítá se prodejní cena, ne zisk. Výjimky platí např. pro cenné papíry v obchodním majetku.</p>
+        <p class="src">Zdroj: zákon č. 586/1992 Sb., § 4 odst. 1 písm. t) a u) (znění k 1. 8. 2026). Nejde o daňové poradenství.</p>
+      </details>
+      <details data-topic="cz-dividends">
+        <summary>Jak se v ČR daní dividendy z USA?</summary>
+        <p>Zahraniční dividendy jsou v ČR zdanitelným příjmem. Daň zaplacenou v USA lze podle smlouvy o zamezení dvojího zdanění obecně započíst proti české dani. Uschovejte si potvrzení o sražené dani. Jak to vychází ve vaší situaci, ověřte s daňovým poradcem.</p>
+        <p class="src">Zdroj: zákon č. 586/1992 Sb., § 8, § 16a, § 38f; smlouva ČR–USA, č. 32/1994 Sb., čl. 24.</p>
+      </details>
+    </div>
+    <aside class="note">
+      <h4>S5 · Explainers (trust layer)</h4>
+      <ul>
+        <li>For visitors who aren't convinced yet. Collapsed by default to keep the page short on mobile.</li>
+        <li>Every statement maps to research: W-8BEN → C1, KID → A1, sale exemptions → D1, dividends → D3. Sources are shown inline.</li>
+        <li><span class="k">General rules only.</span> No personal conclusions such as "no extra Czech tax" or "no need to file" (D3 Avoid list).</li>
+        <li>Event: <code>detail_expand</code> {topic}.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- S6 CHECKLIST + SECOND FORM -->
+  <section class="row">
+    <div class="phone" id="s6">
+      <span class="tag">S6 · CHECKLIST + E-MAIL</span>
+      <h3>Checklist před prvním nákupem</h3>
+      <ol class="check" id="checklistPage"></ol>
+      <div class="form" data-pos="repeat" style="margin-top:12px">
+        <div class="formBody">
+          <p style="margin:0 0 8px"><strong>Pošleme vám checklist i srovnání všech 7 ETF e-mailem.</strong></p>
+          <form novalidate>
+            <label for="em2">Váš e-mail</label>
+            <input type="email" id="em2" autocomplete="email" placeholder="jmeno@email.cz">
+            <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+            <p class="err" role="alert"></p>
+            <button class="btn" type="submit">Poslat checklist a srovnání</button>
+          </form>
+          <p class="micro">E-mail použijeme jen k odeslání tohoto srovnání. Žádný newsletter ani další zprávy. <a href="#s7">Jak nakládáme s údaji</a></p>
+        </div>
+        <div class="confirm" role="status"></div>
+      </div>
+    </div>
+    <aside class="note">
+      <h4>S6 · Checklist (visible) + second ask</h4>
+      <ul>
+        <li><span class="k">The checklist is fully readable on the page</span>: no fact exists only behind the form (README §3). The email is the keep-for-later version plus the 7-fund table and the visitor's own numbers.</li>
+        <li>Second form for visitors who scrolled through the explainers. Same behaviour as S3; {position: repeat}.</li>
+        <li><span class="k">After a successful submit in either form</span>, the other form is hidden and replaced by a single line ("✓ … už jste si nechali poslat na …", "you've already had it sent to …"). The checklist stays visible. If the first form hasn't been used, this one stays as another chance to request the material.</li>
+        <li>Checklist wording = README §3b. Facts and general rules only, no instructions to buy anything.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- S7 METHODOLOGY + FOOTER -->
+  <section class="row last">
+    <div class="phone meth" id="s7">
+      <span class="tag">S7 · METODIKA, ZDROJE, PATIČKA</span>
+      <h3>Jak počítáme a odkud jsou data</h3>
+      <ul>
+        <li><b>Každou položku počítáme zvlášť ze zadané částky.</b> Zjednodušení: poplatek fondu ani daň nesnižujeme o cenu směny (rozdíl je nejvýš 1 % dané položky).</li>
+        <li><b>Poplatek fondu</b> = částka × roční poplatek fondu (TER). Zdroj: stránky emitentů, stav k datu uvedenému u každého fondu.</li>
+        <li><b>Směna</b> = částka × modelová sazba. Výchozích 0,5 % odpovídá přirážce ze sazebníku XTB ze dne 29. 4. 2026. Přirážka se připočítává ke kurzu brokera, takže skutečný náklad může být o něco vyšší. Rozsah 0–1 % je modelový, nejde o přehled trhu. Jiní brokeři účtují jinak.</li>
+        <li><b>Daň z dividend</b> (přibližně) = částka × dividendový výnos za posledních 365 dní × 15 % (s W-8BEN), případně 30 % (bez něj). Výnos je <b>historický</b>: součet výplat s rozhodným dnem od 8. 10. 2025 do 7. 10. 2026 ÷ hodnota podílu (NAV) k 7. 10. 2026; u SPY a SPYM údaj emitenta podle stejné definice. Částka v Kč je ilustrace pro případ, že by fond vyplácel stejně – není to odhad budoucích dividend.</li>
+        <li><b>Nepočítáme:</b> zhodnocení, změny kurzu, poplatky brokera za obchod, rozpětí mezi nákupní a prodejní cenou ani českou daň.</li>
+        <li><b>Zaokrouhlení:</b> dividendový výnos ukazujeme na dvě desetinná místa (např. 1,04 %). Počítáme ale z nezaokrouhlené hodnoty, takže přepočet ze zobrazeného čísla může dát o něco jinou částku. Všechny částky v korunách zaokrouhlujeme na tři platné číslice, nejvýš na celé koruny, a polovinu nahoru (např. 155,93 Kč → 156 Kč, 94,50 Kč → 95 Kč, 15 593 Kč → 15 600 Kč). Jde o modelový výpočet, proto u částek píšeme „≈“.</li>
+        <li><b>Kurz pro představu:</b> 1 USD = 21,811 Kč (ČNB, 8. 10. 2026). Do výpočtů nevstupuje – ty pracují s procenty z částky v korunách.</li>
+      </ul>
+      <p><b>Zdroje:</b> Vanguard (VOO, VTI, VT) · State Street (SPY, SPYM) · iShares (IVV) · Schwab (SCHD) · sazebník XTB 29. 4. 2026 · IRS (W-8BEN, smluvní sazby) · smlouva ČR–USA č. 32/1994 Sb. · zákon č. 586/1992 Sb. · nařízení (EU) č. 1286/2014 (PRIIPs) · ČNB kurzy devizového trhu.</p>
+      <p><b>Důležité:</b> Tato stránka slouží ke vzdělávání. Nejde o nabídku investice, investiční doporučení ani daňové poradenství. Minulé údaje nezaručují budoucí výsledky.</p>
+      <div class="footer">
+        <div class="ph">Provozovatel: [název, sídlo, IČO / zápis v rejstříku, kontaktní e-mail] – doplnit před spuštěním (blokuje spuštění)</div>
+        <p style="margin:8px 0 0">Ochrana osobních údajů · Data k 8. 10. 2026</p>
+      </div>
+    </div>
+    <aside class="note">
+      <h4>S7 · Methodology, sources, footer</h4>
+      <ul>
+        <li>This is the only place XTB is named, as the source of the default model rate (decision 9b).</li>
+        <li>Every number on the card traces to a line here. In production each source is a link (URLs are in research files).</li>
+        <li>Disclaimers follow G4: they don't replace a neutral page, they confirm it.</li>
+        <li><span class="k">Launch blockers shown as placeholders:</span> operator identity (Civil Code § 435), privacy notice, legal review (README §8).</li>
+      </ul>
+    </aside>
+  </section>
+</main>
+
+<!-- STATES -->
+<section class="states">
+  <h2>States, overlays and the delivered email</h2>
+  <p>These frames show elements that appear conditionally. The confirmation state is also live in S3/S6: submit any valid address.</p>
+  <div class="grid">
+
+    <div class="frame">
+      <p class="ftitle">ST1 · STICKY CTA (MOBILE) – PROPOSED, NOT LIVE IN THIS WIREFRAME</p>
+      <div class="sticky"><span>Prověrka <b class="mySelShort">IVV · 100 000 Kč</b></span><b>Poslat e-mailem →</b></div>
+      <div class="note" style="margin:10px 0 0">
+        <b>Intended behaviour (spec for implementation):</b>
+        <ul>
+          <li><span class="k">Appears</span> only after <code>result_view</code> has fired, and only once the visitor has scrolled past the three cost lines. It never overlaps the card while the card is being read.</li>
+          <li><span class="k">Tap</span> scrolls to the S3 form and focuses the email field. If S3 is already in its confirmation state, the bar no longer exists. Event: <code>cta_click</code> {position: sticky}.</li>
+          <li><span class="k">Hidden</span> while S3 or S6 is in the viewport, while any input has focus (the mobile keyboard is open), and while a consent banner (ST2) is showing.</li>
+          <li><span class="k">Doesn't cover content:</span> one line, at most about 56 px plus the device safe-area inset. The page adds the same bottom padding, so the footer, the methodology and the last checklist item stay reachable. No overlay and no focus trap.</li>
+          <li><span class="k">Disappears permanently</span> after a successful submission (<code>lead_success</code>) for the rest of the visit.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="ftitle">ST2 · CONSENT SLOT (ONLY IF REQUIRED)</p>
+      <div class="ph">[Lišta souhlasu – text dodá compliance]<br>„Odmítnout“ stejně výrazné jako „Přijmout“.</div>
+      <div class="note" style="margin:10px 0 0">Reserved space in case the chosen analytics needs consent (§ 89(3) Act 127/2005). Bottom sheet that <span class="k">must not cover the H1 or the card</span> on the first screen. Until a decision is made, the prototype sends no events anywhere.</div>
+    </div>
+
+    <div class="frame">
+      <p class="ftitle">ST3 · VALIDATION + SEND ERROR</p>
+      <p class="err on" style="margin:0 0 8px">Tahle adresa nevypadá úplně správně. Zkontrolujte ji prosím.</p>
+      <p class="err on" style="margin:0 0 8px">E-mail se nepodařilo odeslat. Zkuste to prosím znovu za chvíli.</p>
+      <button class="btn ghost" type="button" disabled>Zkusit znovu</button>
+      <div class="note" style="margin:10px 0 0">Inline, under the field; the typed address is kept; the message clears as soon as the user edits the address. Duplicate submit = just send again, no error. Event: <code>form_error</code> {type: format | network | server}. <span class="k">The send-error state is static here</span>: it can only happen once real sending exists.</div>
+    </div>
+
+    <div class="frame">
+      <p class="ftitle">ST4 · CONFIRMATION (REPLACES THE FORM)</p>
+      <p class="ok">Hotovo ✓</p>
+      <p style="margin:0 0 6px">Srovnání a checklist jsme poslali na <b>jmeno@email.cz</b>.</p>
+      <p class="micro" style="margin:0 0 8px">Nic nepřišlo? Mrkněte do složky Hromadné nebo Spam, případně <u>pošlete znovu</u>.</p>
+      <p style="margin:0"><b>Mezitím tady je checklist:</b> (celý text jako v S6)</p>
+      <button class="btn ghost" type="button" disabled>Prověřit další ETF ↑</button>
+      <div class="note" style="margin:10px 0 0">The value is delivered on the page at once; the email is a copy to keep. "pošlete znovu" (send again) reopens the form with the address kept. <span class="k">In this wireframe nothing is sent</span>; the live state carries a "WIREFRAME ONLY" banner. In production, show this state only after the server confirms sending (<code>lead_success</code>), otherwise show the send error (ST3). Events: <code>lead_success</code>, <code>confirmation_view</code>.</div>
+    </div>
+
+    <div class="frame mail" style="grid-column: 1 / -1">
+      <p class="ftitle">ST5 · DELIVERED EMAIL (OUTLINE + COPY)</p>
+      <div class="hdr">
+        <b>Od:</b> <span class="ph" style="padding:1px 6px;display:inline">[Provozovatel]</span> · <b>Předmět:</b> Vaše prověrka ETF: srovnání 7 fondů a checklist<br>
+        <b>Náhled:</b> <span class="mySel">IVV · 100 000 Kč · směna 0,5 %</span> – a všech 7 fondů vedle sebe.
+      </div>
+      <ol>
+        <li><b>Vaše prověrka</b> – tři řádky z karty (poplatek ročně / směna jednorázově / daň z dividend ročně) a předpoklady stejné jako v metodice: 1 rok, celá zadaná částka, bez zhodnocení, stálý kurz, modelová sazba směny, historický dividendový výnos, zaokrouhlení na tři platné číslice; data k 7.–8. 10. 2026.</li>
+        <li><b>Srovnání 7 ETF</b>
+          <table class="mini"><thead><tr><th>ETF</th><th>Index</th><th>TER</th><th>Dividendy za 12 m (historicky, % hodnoty)</th><th>Daň 15 % z nich na 100 000 Kč (přibližně)</th><th>Od</th><th>Zdroj</th></tr></thead><tbody id="mailTable"></tbody></table>
+          <span class="src">Daň je zjednodušený historický příklad, počítaný stejně jako na kartě; budoucí dividendy se mohou lišit. Pořadí není žebříček.</span>
+        </li>
+        <li><b>Checklist před prvním nákupem</b> – stejný text jako na stránce (S6).</li>
+        <li><b>Jak počítáme a zdroje</b> – stejný text jako S7, s odkazy.</li>
+        <li><b>Patička:</b> „Tento e-mail jste si vyžádali na [stránka]. Další zprávy vám neposíláme.“ · Provozovatel [název, sídlo, IČO, kontakt] · Ochrana osobních údajů · Nejde o investiční doporučení ani daňové poradenství.</li>
+      </ol>
+      <div class="note" style="margin:10px 0 0">One email only, sent immediately, nothing promotional (working assumption 3; research H). Sender domain needs SPF or DKIM (launch blocker). No tracking pixels in the prototype.</div>
+    </div>
+
+  </div>
+</section>
+
+<div class="log" id="log"><button type="button" id="logToggle">–</button><b>Event queue (local, not sent)</b></div>
+
+<script>
+// WIREFRAME-ONLY COPY of research/etf-data.json (accessed 2026-10-08). A file:// page can't load JSON,
+// so the raw inputs are copied here. In production this array must be replaced by loading etf-data.json:
+// one authoritative source, from which the card, overview, email table and methodology all derive.
+// Raw inputs only: the yield is DERIVED below (never stored rounded).
+//   dist = distributions per share with ex-date in the past 365 days (USD), nav = NAV on 2026-10-07 (USD)
+//   issuerYld = issuer-published "Fund Distribution Yield" (SPY, SPYM; already 2 dp)
+// Order: alphabetical by ticker (selection rule for the default, README §3a).
+const FUNDS_RAW = [
+  { t: "IVV",  name: "iShares Core S&P 500 ETF", issuer: "iShares (BlackRock)", index: "S&P 500", desc: "Sleduje index S&P 500 – 500 velkých amerických firem.", ter: 0.03, terDate: "iShares, dle prospektu", dist: [2.202607, 1.995653, 1.783517, 2.413592], nav: 780.82, since: 2000, grp: "same", short: "S&P 500" },
+  { t: "SCHD", name: "Schwab U.S. Dividend Equity ETF", issuer: "Schwab", index: "Dow Jones U.S. Dividend 100", desc: "Sleduje americké akcie vybírané podle kvality a stability dividend.", ter: 0.06, terDate: "Schwab, k 8. 10. 2026", dist: [0.2782, 0.2569, 0.2525, 0.2665], nav: 32.64, since: 2011, grp: "other", short: "dividendové akcie USA" },
+  { t: "SPY",  name: "State Street SPDR S&P 500 ETF Trust", issuer: "State Street", index: "S&P 500", desc: "Sleduje index S&P 500 – 500 velkých amerických firem.", ter: 0.0945, terDate: "State Street, k 8. 10. 2026", issuerYld: 0.98, since: 1993, grp: "same", short: "S&P 500" },
+  { t: "SPYM", name: "State Street SPDR Portfolio S&P 500 ETF", issuer: "State Street", index: "S&P 500", desc: "Sleduje index S&P 500 – 500 velkých amerických firem. Do 31. 10. 2025 pod tickerem SPLG.", ter: 0.02, terDate: "State Street, k 8. 10. 2026", issuerYld: 1.00, since: 2005, grp: "same", short: "S&P 500" },
+  { t: "VOO",  name: "Vanguard S&P 500 ETF", issuer: "Vanguard", index: "S&P 500", desc: "Sleduje index S&P 500 – 500 velkých amerických firem.", ter: 0.03, terDate: "Vanguard, k 28. 4. 2026", dist: [1.8226, 1.9622, 1.8724, 1.7710], nav: 714.56, since: 2010, grp: "same", short: "S&P 500" },
+  { t: "VT",   name: "Vanguard Total World Stock ETF", issuer: "Vanguard", index: "FTSE Global All Cap", desc: "Sleduje akcie firem z celého světa – z vyspělých i rozvíjejících se trhů.", ter: 0.06, terDate: "Vanguard, k 27. 2. 2026", dist: [0.4084, 0.5627, 0.3272, 1.1152], nav: 159.51, since: 2008, grp: "other", short: "akcie z celého světa" },
+  { t: "VTI",  name: "Vanguard Morningstar Total Stock Market ETF", issuer: "Vanguard", index: "Morningstar US Total Market", desc: "Sleduje prakticky celý americký akciový trh – velké, střední i malé firmy.", ter: 0.03, terDate: "Vanguard, k 28. 4. 2026", dist: [0.9555, 1.0437, 0.9982, 0.9508], nav: 381.13, since: 2001, grp: "other", short: "celý americký trh" }
+];
+// Derived once, in one place: unrounded historical yield in % (used by card AND email table).
+const FUNDS = FUNDS_RAW.map(f => ({ ...f, yld: f.issuerYld ?? (f.dist.reduce((a, b) => a + b, 0) / f.nav * 100) }));
+const DEFAULT_T = FUNDS[0].t; // first alphabetically (IVV)
+const CHECKLIST = [
+  ["Nabízí váš broker fond drobným investorům?", "U ETF registrovaných v USA obvykle ne – jejich emitenti zpravidla nevydávají dokument KID, který vyžaduje regulace PRIIPs."],
+  ["V jaké měně máte účet a kolik stojí směna?", "Sazbu najdete v sazebníku brokera. Platí se při každém převodu korun na dolary a zpět."],
+  ["Máte u brokera vyplněný W-8BEN?", "Bez něj se z amerických dividend může strhávat až 30 % místo 15 %. Formulář se vyplňuje u brokera, ne u IRS."],
+  ["Dividendy se daní i v ČR", "Daň zaplacenou v USA lze podle smlouvy o zamezení dvojího zdanění obecně započíst. Uschovejte si potvrzení o sražené dani."],
+  ["Prodej: 3 roky a 100 000 Kč", "Časový test 3 let se počítá u každého nákupu zvlášť. Limit 100 000 Kč za rok se týká prodejních cen, ne zisku."],
+  ["Všech 7 fondů z prověrky dividendy vyplácí", "Žádný z nich je automaticky nereinvestuje – dividendy dostáváte na účet."]
+];
+
+const nf0 = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 });
+const pct = (v, d) => new Intl.NumberFormat("cs-CZ", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v) + " %";
+const pctTer = v => new Intl.NumberFormat("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(v) + " %";
+// Rounding rule (README §3a, research F3): 3 significant digits, never finer than whole CZK, ties half-up.
+// Float noise is removed first (94.49999999999999 → 94.5 → 95). Examples: 155.93 → 156; 94.5 → 95; 15 593 → 15 600.
+const roundCzk = v => {
+  if (v === 0) return 0;
+  v = Math.round(v * 1e6) / 1e6;
+  const e = Math.floor(Math.log10(Math.abs(v))) - 2;
+  if (e <= 0) return Math.round(v);          // below 1 000 Kč: whole CZK
+  const q = Math.pow(10, e);
+  return Math.round(v / q) * q;              // 1 000 Kč and above: 3 significant digits
+};
+const kc = v => v === 0 ? "0 Kč" : v < 0.5 ? "< 1 Kč" : "≈ " + nf0.format(roundCzk(v)) + " Kč";
+// Model rate: show only the decimals the slider step needs (0,5 % · 0,45 % · 1 %).
+const pctRate = v => new Intl.NumberFormat("cs-CZ", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v) + " %";
+
+const state = { t: DEFAULT_T, amt: 100000, rate: 0.5, selCount: 0 };
+const queue = [];
+function track(name, props) {
+  const e = { event: name, ...props, ts: new Date().toISOString().slice(11, 19) };
+  queue.push(e);
+  const log = document.getElementById("log");
+  const div = document.createElement("div");
+  div.textContent = e.ts + "  " + name + (props && Object.keys(props).length ? " " + JSON.stringify(props) : "");
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+const amtBucket = a => a <= 10000 ? "≤10k" : a <= 50000 ? "≤50k" : a <= 100000 ? "≤100k" : a <= 500000 ? "≤500k" : ">500k";
+const rateBucket = r => r === 0 ? "0" : r <= 0.25 ? "≤0.25" : r <= 0.5 ? "≤0.5" : "≤1";
+
+function render() {
+  const f = FUNDS.find(x => x.t === state.t);
+  // Each line uses only its own inputs (no cross-dependency).
+  const fee = state.amt * f.ter / 100;            // amount × TER
+  const conv = state.amt * state.rate / 100;      // amount × model rate
+  const wht15 = state.amt * f.yld / 100 * 0.15;   // amount × past yield × 15 %
+  const wht30 = state.amt * f.yld / 100 * 0.30;
+
+  document.getElementById("cTick").textContent = f.t;
+  document.getElementById("cName").textContent = f.name;
+  document.getElementById("cDesc").textContent = f.desc;
+  document.getElementById("cFacts").innerHTML = ["NYSE Arca", "v USD", "fond registrovaný v USA", "od " + f.since, "dividendy čtvrtletně"].map(x => "<span>" + x + "</span>").join("");
+  document.getElementById("cTerSub").textContent = "TER " + pctTer(f.ter) + " ročně";
+  document.getElementById("cFee").textContent = kc(fee);
+  document.getElementById("cRateSub").textContent = "modelová sazba " + pctRate(state.rate);
+  document.getElementById("rateOut").textContent = pctRate(state.rate);
+  document.getElementById("cConv").textContent = kc(conv);
+  document.getElementById("cWht").textContent = kc(wht15);
+  document.getElementById("cWhtNote").textContent =
+    "Zjednodušený příklad podle minulosti, ne předpověď. Za posledních 12 měsíců fond vyplatil na dividendách přibližně " + pct(f.yld, 2) +
+    " své hodnoty. Kdyby vyplatil stejně, strhlo by se v USA 15 % z dividend, tedy " + kc(wht15) + " ročně. Bez formuláře W-8BEN až 30 % (" + kc(wht30) +
+    "). Je to daň, ne poplatek fondu. Nejde o výpočet vaší daně – jak se dividendy zdaní v ČR a jak se americká daň započte, záleží na vaší situaci.";
+  document.getElementById("cExample").style.display = (f.t === DEFAULT_T && state.selCount === 0) ? "" : "none";
+  document.getElementById("cStamp").innerHTML =
+    "ETF se obchoduje v USD, takže částky v korunách se mohou měnit s kurzem. Výpočet na 1 rok, bez zhodnocení a se stálým kurzem. Poplatek: " + f.terDate + " · dividendy: 12 měsíců do 7. 10. 2026. <a href=\"#s7\">Jak počítáme ↓</a>";
+
+  document.querySelectorAll("#etfChips .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === state.t)));
+  const sel = f.t + " · " + nf0.format(state.amt) + " Kč · směna " + pctRate(state.rate);
+  document.querySelectorAll(".mySel").forEach(n => n.textContent = sel);
+  document.querySelectorAll(".mySelShort").forEach(n => n.textContent = f.t + " · " + nf0.format(state.amt) + " Kč");
+}
+
+// chips
+const etfChips = document.getElementById("etfChips");
+FUNDS.forEach(f => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.dataset.t = f.t; b.textContent = f.t; b.setAttribute("aria-pressed", "false");
+  b.addEventListener("click", () => selectFund(f.t, "chips"));
+  etfChips.appendChild(b);
+});
+let engaged = false;
+function firstEngage() { if (!engaged) { engaged = true; track("first_screen_engaged", { ms_since_load: Math.round(performance.now()) }); } }
+function selectFund(t, source) {
+  firstEngage();
+  const prev = state.t; state.t = t; state.selCount++;
+  track("etf_select", { ticker: t, previous: prev, count: state.selCount, source });
+  render();
+}
+document.getElementById("amtSel").addEventListener("change", e => {
+  firstEngage();
+  const wrap = document.getElementById("customWrap");
+  const custom = document.getElementById("customAmt");
+  if (e.target.value === "custom") {
+    // Prefill with the current amount so the figures shown always match the input.
+    wrap.classList.add("on"); custom.value = state.amt; custom.focus(); custom.select(); return;
+  }
+  wrap.classList.remove("on"); document.getElementById("customErr").classList.remove("on");
+  state.amt = Number(e.target.value); track("amount_change", { bucket: amtBucket(state.amt), kind: "preset" }); render();
+});
+const customAmt = document.getElementById("customAmt");
+const customValid = v => Number.isFinite(v) && v >= 1000 && v <= 10000000;
+customAmt.addEventListener("input", () => {
+  const v = Number(customAmt.value);
+  const ok = customValid(v);
+  document.getElementById("customErr").classList.toggle("on", !ok);
+  customAmt.setAttribute("aria-invalid", String(!ok));
+  if (ok) { state.amt = Math.round(v); render(); }  // invalid input keeps the last valid figures
+});
+customAmt.addEventListener("change", () => { if (customValid(Number(customAmt.value))) track("amount_change", { bucket: amtBucket(state.amt), kind: "custom" }); });
+const rate = document.getElementById("rate");
+rate.addEventListener("input", () => { state.rate = Number(rate.value); render(); });
+rate.addEventListener("change", () => { firstEngage(); track("rate_change", { bucket: rateBucket(state.rate) }); });
+
+// overview lists (alphabetical within group – not a ranking)
+function fillList(id, grp) {
+  const el = document.getElementById(id);
+  FUNDS.filter(f => f.grp === grp).sort((a, b) => a.t.localeCompare(b.t)).forEach(f => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = "<span class=\"t\">" + f.t + "</span><span class=\"d\">" + (grp === "same" ? f.issuer : f.short) + "</span><span class=\"f\">TER " + pctTer(f.ter) + "</span>";
+    b.addEventListener("click", () => { selectFund(f.t, "overview"); document.getElementById("s2").scrollIntoView({ behavior: "smooth", block: "start" }); });
+    el.appendChild(b);
+  });
+}
+fillList("listSame", "same"); fillList("listOther", "other");
+{ // derived from the same data – no hard-coded copy of the fee gap
+  const same = FUNDS.filter(f => f.grp === "same").map(f => f.ter);
+  const gap = Math.round((Math.max(...same) - Math.min(...same)) * 1e6) / 1e6;
+  document.getElementById("sameIdxText").textContent = "Tyto čtyři fondy sledují stejný index S&P 500. Jejich roční poplatky se liší nejvýš o " + new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 4 }).format(gap) + " procentního bodu.";
+}
+
+// checklist
+const cl = document.getElementById("checklistPage");
+const checklistHTML = CHECKLIST.map(([h, p]) => "<li><b>" + h + "</b>" + p + "</li>").join("") + "<li style=\"list-style:none;margin-left:-20px\"><span class=\"src\">Svou situaci ověřte s daňovým poradcem.</span></li>";
+cl.innerHTML = checklistHTML;
+
+// email table
+document.getElementById("mailTable").innerHTML = FUNDS.map(f =>
+  "<tr><td>" + f.t + "</td><td>" + f.index + "</td><td>" + pctTer(f.ter) + "</td><td>" + pct(f.yld, 2) + "</td><td>" + kc(100000 * f.yld / 100 * 0.15) + "</td><td>" + f.since + "</td><td>" + f.issuer + "</td></tr>").join("");
+
+// forms (SIMULATED – no network request, no storage)
+const EMAIL_ERR = "Tahle adresa nevypadá úplně správně. Zkontrolujte ji prosím.";
+document.querySelectorAll(".form").forEach(box => {
+  const pos = box.dataset.pos;
+  const form = box.querySelector("form");
+  const input = form.querySelector("input[type=email]");
+  const err = form.querySelector(".err");
+  let started = false;
+  input.addEventListener("focus", () => { if (!started) { started = true; track("form_start", { position: pos }); } });
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    track("form_submit", { position: pos, ticker: state.t, amount_bucket: amtBucket(state.amt), rate_bucket: rateBucket(state.rate) });
+    if (form.company.value) return; // honeypot
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(input.value.trim());
+    if (!ok) { err.textContent = EMAIL_ERR; err.classList.add("on"); input.setAttribute("aria-invalid", "true"); track("form_error", { position: pos, type: "format" }); return; }
+    err.classList.remove("on"); input.removeAttribute("aria-invalid");
+    track("lead_success", { position: pos, note: "SIMULATED – nothing sent, nothing stored" });
+    const c = box.querySelector(".confirm");
+    c.innerHTML =
+      "<div class=\"ph\" style=\"margin-bottom:10px;font-size:12.5px\"><b>WIREFRAME ONLY:</b> nothing was sent and nothing was stored. Production needs a real sending integration (email provider, sending domain with SPF/DKIM, storage and retention) – README §8.</div>" +
+      "<p class=\"ok\">Hotovo ✓</p><p style=\"margin:0 0 6px\">Srovnání a checklist jsme poslali na <b class=\"addr\"></b>.</p>" +
+      "<p class=\"micro\" style=\"margin:0 0 10px\">Nic nepřišlo? Mrkněte do složky Hromadné nebo Spam, případně <button type=\"button\" class=\"resend\" style=\"all:unset;text-decoration:underline;cursor:pointer\">pošlete znovu</button>.</p>" +
+      "<p style=\"margin:0\"><b>Mezitím tady je checklist:</b></p><ol class=\"check\">" + checklistHTML + "</ol><button class=\"btn ghost back\" type=\"button\">Prověřit další ETF ↑</button>";
+    c.querySelector(".addr").textContent = input.value.trim();
+    c.querySelector(".back").addEventListener("click", () => document.getElementById("s1").scrollIntoView({ behavior: "smooth" }));
+    // "Send again" returns to the form with the address kept (brief: retryable, duplicates handled quietly).
+    c.querySelector(".resend").addEventListener("click", () => { c.classList.remove("on"); box.querySelector(".formBody").style.display = ""; input.focus(); });
+    box.querySelector(".formBody").style.display = "none";
+    c.classList.add("on");
+    track("confirmation_view", { position: pos });
+    // After any successful submit, the other form is hidden and replaced by a one-line note.
+    document.querySelectorAll(".form").forEach(other => {
+      if (other === box) return;
+      other.querySelector(".formBody").style.display = "none";
+      other.querySelector(".confirm").classList.remove("on");
+      let s = other.querySelector(".sentNote");
+      if (!s) { s = document.createElement("p"); s.className = "sentNote micro"; other.appendChild(s); }
+      s.textContent = "✓ Srovnání a checklist už jste si nechali poslat na " + input.value.trim() + ".";
+      s.style.display = "";
+    });
+  });
+  input.addEventListener("input", () => { if (err.classList.contains("on")) { err.classList.remove("on"); input.removeAttribute("aria-invalid"); } });
+});
+
+// visibility-based events
+const seen = new Set();
+const io = new IntersectionObserver(entries => entries.forEach(en => {
+  if (!en.isIntersecting) return;
+  const id = en.target.dataset.ev; if (seen.has(id)) return;
+  setTimeout(() => {
+    if (seen.has(id)) return; seen.add(id);
+    if (id === "result") track("result_view", { ticker: state.t, amount_bucket: amtBucket(state.amt) });
+    else if (id === "compare") track("compare_view", {});
+    else track("form_view", { position: id });
+  }, 1000);
+}), { threshold: 0.5 });
+document.getElementById("card").dataset.ev = "result"; io.observe(document.getElementById("card"));
+document.getElementById("s4").dataset.ev = "compare"; io.observe(document.getElementById("s4"));
+document.querySelectorAll(".form").forEach(b => { b.dataset.ev = b.dataset.pos; io.observe(b); });
+document.querySelectorAll("details").forEach(d => d.addEventListener("toggle", () => { if (d.open) track("detail_expand", { topic: d.dataset.topic }); }));
+
+const p = new URLSearchParams(location.search);
+track("page_view", { utm_source: p.get("utm_source"), variant_id: p.get("v"), in_app: /FBAN|FBAV|Instagram/i.test(navigator.userAgent) });
+document.getElementById("logToggle").addEventListener("click", () => document.getElementById("log").classList.toggle("min"));
+if (matchMedia("(max-width: 860px)").matches) document.getElementById("log").classList.add("min");
+render();
+</script>
+</body>
+</html>
