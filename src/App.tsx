@@ -1,4 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { referrerHost } from './analytics/context'
+import { amountBucket, rateBucket } from './analytics/events'
+import { useSeenOnce, useTracker } from './analytics/hooks'
 import { Checklist } from './components/Checklist'
 import { Comparison } from './components/Comparison'
 import { EtfPicker } from './components/EtfPicker'
@@ -21,18 +24,43 @@ export default function App() {
   const [rate, setRate] = useState<number>(CONVERSION_RATE.defaultPct)
   const [sentLead, setSentLead] = useState<SentLead | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const tracker = useTracker()
+  const selectionCount = useRef(0)
+  const lastCommittedRate = useRef<number>(CONVERSION_RATE.defaultPct)
+
+  // landing_view: once per page load (trackOnce also absorbs StrictMode's double effect in dev).
+  useEffect(() => {
+    if (!tracker.active) return
+    tracker.trackOnce('landing_view', 'landing_view', { referrer_host: referrerHost(document.referrer, window.location.hostname) })
+  }, [tracker])
+
+  // result_viewed: the card has been ≥ 50 % visible for ≥ 1 s – once per page load.
+  useSeenOnce(cardRef, () =>
+    tracker.trackOnce('result_viewed', 'result_viewed', { ticker, amount_bucket: amountBucket(amount), rate_bucket: rateBucket(rate) }),
+  )
 
   const result = useMemo(() => buildResult(getFund(ticker), amount, rate), [ticker, amount, rate])
   const comparisonModel = useMemo(() => buildComparison(etfData.funds, amount, rate), [amount, rate])
 
-  const selectFund = (t: string) => {
+  const selectFund = (t: string, source: 'picker' | 'comparison' = 'picker') => {
+    if (t !== ticker) {
+      selectionCount.current += 1
+      tracker.track('etf_selected', { ticker: t, previous_ticker: ticker, source, selection_count: selectionCount.current })
+    }
     setTicker(t)
     setHasSelected(true)
   }
 
+  /** The slider was released on a new value (not every step while dragging). */
+  const commitRate = (r: number) => {
+    if (r === lastCommittedRate.current) return
+    lastCommittedRate.current = r
+    tracker.track('conversion_rate_changed', { rate_bucket: rateBucket(r) })
+  }
+
   /** From the comparison: select the fund, bring the card into view and move focus to its heading. */
   const inspectFund = (t: string) => {
-    selectFund(t)
+    selectFund(t, 'comparison')
     requestAnimationFrame(() => {
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       cardRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
@@ -92,6 +120,7 @@ export default function App() {
                 onAmountChange={setAmount}
                 rate={rate}
                 onRateChange={setRate}
+                onRateCommit={commitRate}
                 showDefaultRule={!hasSelected && ticker === defaultTicker}
               />
             </div>

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { card } from '../content/cs'
 import { CONVERSION_RATE } from '../domain/calc'
 import type { ResultModel } from '../domain/result'
@@ -10,6 +10,8 @@ interface Props {
   onAmountChange: (amountCzk: number) => void
   rate: number
   onRateChange: (ratePct: number) => void
+  /** Fired when the slider value is committed (pointer released / keyboard step), not while dragging. */
+  onRateCommit?: (ratePct: number) => void
   showDefaultRule: boolean
 }
 
@@ -32,7 +34,21 @@ function CostLine(props: { name: string; sub: string; value: string; unit: strin
   )
 }
 
-export function ResultCard({ result, amount, onAmountChange, rate, onRateChange, showDefaultRule }: Props) {
+export function ResultCard({ result, amount, onAmountChange, rate, onRateChange, onRateCommit, showDefaultRule }: Props) {
+  // React's onChange follows the native "input" event; the native "change" event marks the commit.
+  const rangeRef = useRef<HTMLInputElement>(null)
+  const commit = useRef(onRateCommit)
+  useEffect(() => {
+    commit.current = onRateCommit
+  })
+  useEffect(() => {
+    const el = rangeRef.current
+    if (!el) return
+    const onCommit = () => commit.current?.(Number(el.value))
+    el.addEventListener('change', onCommit)
+    return () => el.removeEventListener('change', onCommit)
+  }, [])
+
   return (
     <article aria-labelledby="result-title" className="overflow-hidden rounded-md border border-line bg-surface">
       <header className="px-4 pt-4 sm:px-6 sm:pt-6">
@@ -67,6 +83,7 @@ export function ResultCard({ result, amount, onAmountChange, rate, onRateChange,
             <span className="text-[15px] font-semibold text-ink">{result.conversion.rateText}</span>
           </label>
           <input
+            ref={rangeRef}
             id="rate"
             type="range"
             className="range block w-full"

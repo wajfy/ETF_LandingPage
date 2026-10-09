@@ -1,6 +1,6 @@
 # ETF reality check — product brief
 
-**Status:** Wireframe phase **closed** 2026-10-09. **M1–M3 built locally** (section 10): hero and interactive result card; comparison of all 7 funds; explanatory chapters; checklist; methodology; both email forms with server-side delivery through Resend (mock by default, section 13). Shared calculation and formatting; tests. Nothing is deployed and no real email has been sent. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html). No production code written yet.
+**Status:** Wireframe phase **closed** 2026-10-09. **M1–M3 built locally** (section 10): hero and interactive result card; comparison of all 7 funds; explanatory chapters; checklist; methodology; both email forms with server-side delivery through Resend (mock by default, section 13); funnel analytics events through a provider-independent layer (**disabled**, nothing sent, section 6). Shared calculation and formatting; tests. Nothing is deployed and no real email has been sent. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html).
 **Scope:** a landing page for Czech retail investors arriving from mobile ads. It explains the differences, the costs and the practical restrictions of seven US-listed ETFs, and collects an email in exchange for the full comparison and a checklist.
 
 The brief uses only claims supported by [research/](research/README.md). References like *(A1)* or *(F2)* point to sections of [research/claims-verification.md](research/claims-verification.md). Fund data comes from [research/etf-data.json](research/etf-data.json).
@@ -16,7 +16,7 @@ Details in section 9.
 - **Conversion:** adjustable model rate, 0–1 %, default 0.5 %. XTB is named only in the methodology.
 - **Email:** only delivers the requested material, immediately. No marketing, no double opt-in. After a success, the other form is hidden.
 - **Partnerships:** none with brokers or issuers; no affiliate or buy links.
-- **Analytics:** provider-agnostic event queue that sends nothing until a tool and consent approach are chosen.
+- **Analytics:** provider-agnostic event layer (built in M4, section 6) that sends nothing until a tool and consent approach are chosen.
 - **Single source of truth:** `research/etf-data.json`, read through one shared calculation module (section 10).
 
 ### Assumptions that still need verification (never present as fact)
@@ -251,50 +251,188 @@ Never put the email address in a URL or send it to analytics.
 
 ## 6. Analytics events (full funnel)
 
-**Funnel to make measurable**
+**Status (M4, built locally 2026-10-09):** a provider-independent event layer is in place and instrumented. **Analytics is disabled:** no provider is connected, nothing leaves the browser, and production builds register no receiver at all. Code: `src/analytics/`.
 
-landing → first interaction → result seen → form seen → form started → submitted → email delivered / opened
+**Funnel**
 
-Every metric should be splittable by UTM source, medium, campaign and content, by landing variant ID, and by device / in-app browser.
+`landing_view` → (`etf_selected`, optional) → `result_viewed` → `lead_form_viewed` → `lead_form_started` → `lead_submitted` → `lead_email_accepted` → (`guide_opened`: **not measured**, see below)
 
-| Event | Fires when | Key properties |
-|---|---|---|
-| `page_view` | Page loads | utm_*, variant_id, referrer, device type, in-app browser flag |
-| `first_screen_engaged` | First interaction of any kind | ms since load |
-| `etf_select` | User taps an ETF | ticker, previous ticker, selection count |
-| `amount_change` | Amount changed | bucket (preset / custom range), not the raw value |
-| `rate_change` | Model conversion rate changed (on release) | rate bucket (0 / ≤0.25 / ≤0.5 / ≤1 %) |
-| `result_view` | Result card ≥ 50% in viewport for ≥ 1 s | ticker, amount bucket |
-| `detail_expand` | User opens an explainer / assumptions | topic (fee, conversion, withholding, KID, Czech tax) |
-| `source_click` | User clicks a source link | source domain |
-| `compare_view` | Same-index comparison or the 7-ETF overview seen | — |
-| `cta_click` | Any email CTA tapped | position (inline / repeat / sticky) |
-| `form_view` | Form ≥ 50% in viewport | position |
-| `form_start` | Focus on the email field | position |
-| `form_error` | Validation or server error | error type (format, network, server) |
-| `form_submit` | Submit attempted | position, ticker, amount bucket |
-| `lead_success` | Server confirms | position; **no email in the payload** |
-| `confirmation_view` | Confirmation state shown | — |
-| `scroll_depth` | 25 / 50 / 75 / 100% | — |
-| `engaged_time` | Heartbeat or on leave | seconds visible |
-| `email_delivered` / `email_open` / `email_click` | Email-service-side, if the chosen service supports it | lead id (pseudonymous) |
+### Event definitions (exactly when each fires)
 
-**Funnel metrics these enable:**
-- share of visitors who interact
-- result-view rate
-- form-view rate
-- form-start rate
-- submit and success rate (per visitor and per form view)
-- error rate
-- time to submit
-- which ETFs and topics people open
-- which CTA position converts
+"Seen" below means: at least 50 % of the element in the viewport (or, for an element taller than two screens, at least half the screen covered by it), continuously for at least 1 s, while the tab is visible.
 
-**Constraints**
-- **Prototype:** events go into a provider-agnostic local queue and aren't sent anywhere until the analytics tool and consent approach are chosen (9b, 9c).
-- Storing or reading anything on the device that isn't technically necessary needs prior provable consent (§ 89(3) Act 127/2005; research H).
-- Either a consent banner where refusing is as easy as accepting, or an analytics setup that stores nothing on the device. Whether a particular "cookieless" tool falls outside § 89(3) is a compliance question.
-- No personal data in events.
+| Event | Fires when | Does NOT fire / duplicates | Properties |
+|---|---|---|---|
+| `landing_view` | The page has loaded and rendered | Once per page load (also under React StrictMode) | `referrer_host` (external referrer host only, optional) |
+| `etf_selected` | The visitor picks a **different** fund in the chip picker or with „Prověřit …“ in the comparison | Not for the default preselection (IVV), not for re-picking the current fund | `ticker`, `previous_ticker`, `source` (`picker` / `comparison`), `selection_count` (n-th change on this page) |
+| `result_viewed` | The result card has been seen | Once per page load, with the state at that moment | `ticker`, `amount_bucket`, `rate_bucket` |
+| `conversion_rate_changed` | **Calculator input, not a funnel metric:** the card's *currency-conversion* fee slider („modelová sazba“, 0–1 %) is **released** on a value different from the last reported one (one event per drag; each keyboard step is a release) | Not while dragging; not when released on the same value | `rate_bucket` |
+| `lead_form_viewed` | A form (inline or repeat) has been seen, **or** its email field is focused, whichever comes first | Once per position per page load. Never for the confirmation or the „už jste si nechali poslat“ line, which are not forms | `position` (`inline` / `repeat`) |
+| `lead_form_started` | First focus on that form's email field | Once per position per page load | `position` |
+| `lead_submitted` | The browser **actually sends** a request to `/api/lead`: the address passed client validation and no request is already in flight | Not for an invalid address (→ `lead_form_error`), not for ignored double clicks. Every real attempt counts; `attempt: retry` marks a re-send of the same send intent after an error | `position`, `ticker`, `amount_bucket`, `rate_bucket`, `attempt` (`first` / `retry`) |
+| `lead_email_accepted` | The server answered **200 `{status: "sent"}`**. The server returns that **only after the email provider (Resend) accepted the email for sending** (section 13). In mock mode it means the mock outbox accepted it; `delivery` says which. **Not proof that the email reached the inbox** | **Never** on a timeout, network error, 504/„unconfirmed“, 502, 503 or 429. At most once per send intent (a retry that returns the original send is not a second acceptance). „pošlete znovu“ is a new intent and counts again | `position`, `ticker`, `amount_bucket`, `delivery` (`resend` / `mock`), `accepted_on_page` (1 = first accepted send on this page load, both forms together; 2, 3 … for further sends) |
+| `lead_form_error` | Client validation failed, or an attempt ended without confirmation | One per failed attempt | `position`, `error_type`: `invalid_email`, `unconfirmed` (timeout / network / 504: the email **may** have been sent; counted as an error, never as a success), `send_failed`, `rate_limited`, `unavailable` |
+| `guide_opened` | **Reserved, not emitted.** See "Opening the email" below | The tracker refuses it | — |
+
+**Accepted ≠ delivered.** The event was renamed from `lead_email_delivered` to `lead_email_accepted` in the M4 review. It means Resend accepted the message for sending. Whether it reached the inbox (or bounced, or landed in spam) is only knowable from the provider's delivery webhooks, which are not connected. No event or metric in this project claims inbox delivery.
+
+**Two different "conversion rates" — don't mix them up:**
+- `conversion_rate_changed` is about the **currency conversion** (CZK → USD) fee the visitor models on the card. It is a calculator interaction and says nothing about leads.
+- The **landing-page conversion rate** is a funnel metric: the share of page loads that ended with an accepted email. How to calculate it is below. The two share a word, nothing else.
+
+**Buckets instead of raw values** (an unusual exact amount could single a visitor out):
+- `amount_bucket`: `10000`, `50000`, `100000` (the presets) or `custom_lt_10k`, `custom_10k_100k`, `custom_100k_1m`, `custom_gt_1m`.
+- `rate_bucket`: `0`, `0.05-0.25`, `0.3-0.5` (includes the 0.5 % default), `0.55-1`.
+
+### Context attached to every event
+So every metric can be split without any visitor identifier:
+- `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`: read from the URL. A value is dropped if it could carry personal data (contains `@`, `/`, `=` or similar characters, a run of 6+ digits, or a UUID-like id) and cut to 64 characters. `utm_term` and click ids (`gclid`, `fbclid`, …) are ignored.
+- `device`: `mobile` / `tablet` / `desktop` from the viewport width at the layout breakpoints (768 / 1024 px).
+- `in_app`: true in the Facebook, Instagram, TikTok, LinkedIn, Snapchat or Pinterest in-app browsers (from the user-agent string, kept as a boolean only).
+- **Landing variant ID:** not populated. No variants exist yet and none are invented here; adding one is a single context field.
+
+### Landing-page conversion rate (indicative) and what the funnel can answer
+
+There are no visitor or session ids, so **every rate is per page load, not per person**. We can't count unique visitors or unique leads, and nothing here claims to.
+
+**Indicative landing-page conversion rate**
+
+> page-load conversion rate = number of `lead_email_accepted` with `accepted_on_page = 1` and `delivery = resend` ÷ number of `landing_view`
+
+It reads as "the share of page loads that ended with at least one email accepted by Resend". Numerator and denominator are both counted per page load, so the ratio is internally consistent. Both must use the same filters (date range, UTM, device).
+
+**How repeat visits affect it** (no correction is possible):
+- Each page load counts in the denominator: a reload, a second visit from the ad, a later visit, a second tab.
+- One person with three page loads and one request counts as 1 ÷ 3. Repeat visits therefore push the rate **below** a per-person rate, by an unknown amount.
+- Returning with the browser's back/forward cache normally restores the page without a new `landing_view`.
+
+**How repeated submissions affect it:**
+- **Retries of the same attempt** (after "unconfirmed" or an error) produce one acceptance at most. No effect.
+- **„pošlete znovu“ or the second form on the same page load** produce `accepted_on_page` 2, 3, … The `= 1` filter excludes them, so a page load counts once.
+- **The same person requesting again on a different page load** (e.g. the next day) counts again. We can't detect it.
+- **All acceptances, without the filter,** measure emails accepted, not people. That's useful for volume and cost, but it isn't a lead count.
+
+**Other known biases:**
+- `landing_view` needs the page's script to run. Ad clicks that bounce before that, or with blocked scripts, are missing, so the ad platform's click-based conversion rate will differ.
+- Bots that fill the honeypot can appear as acceptances.
+- Under a consent gate, events before the grant are dropped. That includes `landing_view`, which fires at load, usually before any choice. The page-load conversion rate is then undefined until the integration defines a consistent basis (see "Before advertising").
+
+**Per-step rates**, with the same per-page-load caveat:
+- form-level: acceptances ÷ `lead_form_viewed`, **per `position`** (one page load can view both forms);
+- submit-to-accept: `lead_email_accepted` ÷ `lead_submitted` with `attempt = first`;
+- the share of unconfirmed sends: `lead_form_error` with `error_type = unconfirmed` ÷ `lead_submitted`.
+
+**Cannot be answered:**
+- unique visitors or unique leads;
+- per-visitor paths;
+- time to submit.
+
+If per-visitor metrics are needed, an in-memory per-page-load random id (never stored) is the smallest step. It's an identifier, so it belongs to the consent decision.
+
+**Authoritative count of accepted sends:** the server's structured `lead_sent` log lines (section 13; no personal data). The client-side total of `lead_email_accepted` can be lower (the visitor closed the page before the answer, or blocked scripts). It can also include honeypot bots, which the server answers like a success by design; the server log counts them separately as `lead_honeypot`.
+
+### Opening the email (`guide_opened`): not measured — decision needed
+The email currently contains no link back to the page, so an open can't be observed without email tracking technology. Options:
+1. **Open-tracking pixel** (the provider's open tracking): adds a tracking technology to the email, unreliable (Apple Mail Privacy Protection preloads images; many clients block them), and a consent / privacy-notice question for the legal review.
+2. **A plain link back to the page with campaign parameters only** (e.g. `utm_source=lead_email&utm_medium=email`, no per-recipient id): measured as a `landing_view` with that UTM. It measures returns from the email, not opens. It changes the email content, so it is out of scope for M4.
+3. **Don't measure.**
+
+Recommendation: option 2 if the metric is needed; no option is implemented.
+
+### Mapping from the earlier plan
+| Earlier name | Now |
+|---|---|
+| `page_view` | `landing_view` |
+| `etf_select` | `etf_selected` |
+| `rate_change` | `conversion_rate_changed` (same rule: on release, bucketed) |
+| `result_view` | `result_viewed` |
+| `form_view` / `form_start` | `lead_form_viewed` / `lead_form_started` |
+| `form_submit` | `lead_submitted` |
+| `lead_success` / `confirmation_view` | `lead_email_accepted` (named `lead_email_delivered` until the M4 review; the confirmation is shown exactly when it fires) |
+| `form_error` | `lead_form_error` |
+| `email_open` | `guide_opened` (reserved, not measured) |
+
+**Deferred** (planned earlier, not built in M4; each is a one-line `track` call through the same interface): `first_screen_engaged`, `amount_change`, `detail_expand`, `source_click`, `compare_view`, `cta_click` (needs the sticky CTA, which isn't built), `scroll_depth`, `engaged_time`, and provider-side `email_delivered` (actual inbox delivery from webhooks) / `email_click`.
+
+### Privacy and consent
+
+**What the current implementation does on the device**
+
+| Technology | Used? |
+|---|---|
+| Cookies | No |
+| localStorage, sessionStorage, IndexedDB | No |
+| Visitor, session or device identifiers; fingerprinting | No (no ids; click ids ignored) |
+| Tracking pixels, beacons, network requests for analytics | No (the analytics code has no network transport) |
+| Reading page data | Only when a receiver is registered, i.e. **only in local development**: the URL query (UTM), the viewport width, the user-agent string (in-app flag) and the referrer host. Production builds register no receiver, so the analytics code reads nothing |
+
+A test (`src/analytics/privacy.test.ts`) fails if browser code starts using cookies, device storage, beacons, pixels, click ids or a network call outside the lead client.
+
+**Why there is no consent banner now:** this build stores nothing on the device and transmits nothing for analytics. In production, the analytics code does no work at all. A banner would ask visitors to consent to nothing. This describes the current build; **it is not a legal conclusion** about any future setup.
+
+**The consent gate already in code** (`src/analytics/tracker.ts`). Any adapter registered with the tracker receives events **only while consent is „granted“**:
+- **No opt-out for adapters.** There is no flag an adapter can set to skip the gate. The only ungated receiver is the dev debug buffer created inside `tracker.ts`, recognised by object identity.
+- **Consent always starts as „unknown“.** A tracker can't be created as „granted“; only `setConsent()` changes it, called from a visitor's choice.
+- **No replay.** Events from before a grant are dropped, never queued. "Once per page load" events used up before the grant are not sent after it either.
+- **No page reading before consent.** Page data (URL, viewport, user agent, referrer) isn't read until an event will actually be sent.
+- **Withdrawal is immediate.** `setConsent('denied')` stops sending at once.
+
+If the legal review concludes that a particular setup needs no consent, sending without a grant requires a deliberate code change in `tracker.ts` and its tests. It can't happen by configuration.
+
+**What the code cannot enforce, so the tests guard it** (`src/analytics/privacy.test.ts`). A provider loaded *around* the tracker would bypass the gate. These tests fail if:
+- `index.html` loads an external script or image;
+- a runtime dependency is added beyond the reviewed set;
+- browser code uses cookies, device storage, `sendBeacon`, pixels or `fetch` outside the lead client;
+- any code calls `setConsent('granted')` with a literal.
+
+Changing any of these must go together with the consent decision.
+
+**Before connecting any provider (requirements; ⚖ = needs the legal review):**
+1. ⚖ **Whether consent is required.** Even without cookies, a script that reads information from the browser and sends it to a provider can count as gaining access to information on the user's device (§ 89(3) Act 127/2005, implementing ePrivacy Art. 5(3)). The EDPB Guidelines 2/2023 on the technical scope of Art. 5(3) read that scope broadly, including URL- and pixel-based tracking (not yet verified from the primary text in `research/`). We don't assume any "cookieless" setup is exempt.
+2. **If consent is required, a minimal consent interface:**
+   - **Přijmout** and **Odmítnout** equally prominent, on the first layer; no pre-ticked choices; no tracking before a choice;
+   - keyboard-accessible, labelled, and not hiding the first cost figure (the sticky CTA rule "hidden while a consent banner is showing" still applies);
+   - a permanent footer link (e.g. „Nastavení analytiky“) to change or withdraw consent at any time, wired to `tracker.setConsent`.
+3. ⚖ **Remembering the choice** (so the banner doesn't reappear) means storing something on the device. Whether that counts as technically necessary must be confirmed. The alternative is to ask on every visit.
+4. **Privacy notice:** the analytics provider as a recipient, the purpose, the legal basis (⚖), the retention period and any transfer outside the EU.
+5. **Provider criteria:** EU hosting or a valid transfer basis; no cross-site identifiers; IP addresses not stored; aggregate reporting; a data processing agreement.
+6. **A server-side alternative** (counting funnel steps on our own server) avoids browser-side tracking code. It still processes request data such as IPs in the hosting logs (⚖).
+
+### Implemented now vs. required before advertising
+
+**Implemented and verified locally (M4):**
+- **Event layer.** The events above, an allow-list of properties, buckets instead of raw values, and UTM/device/in-app context. Unit tests cover semantics, duplicates, retries and the failure paths. A browser check in the dev server (mock delivery) confirmed that a simulated gateway timeout records `unconfirmed` and no acceptance.
+- **Consent gate.** Every adapter is gated, a tracker can't start as granted, and there is no replay; tests cover each, plus tripwires for provider code loaded around the tracker.
+- **Disabled in production builds.** No receiver is registered, the debug buffer is absent from the bundle (checked), and there are no cookies, storage or identifiers.
+
+**Not done — must be configured and verified before any ad traffic** (⚖ = legal review):
+
+*Configure*
+1. Choose the analytics provider (criteria in point 5 above), implement and register the adapter.
+2. ⚖ Decide whether that setup needs consent. If it does (and by default the code requires it), build the consent interface (point 2 above).
+3. ⚖ Decide whether to remember the consent choice (point 3 above).
+4. ⚖ Update the privacy notice for analytics (point 4 above).
+5. Define the conversion-rate basis under consent: `landing_view` normally fires before the choice and is dropped. One option is a new observation at the moment of consent ("consented page load"). It must be a new event, not a replay, and needs the same legal check.
+6. Set ad URL templates to plain campaign labels. Values with 6+ digit runs (e.g. numeric campaign-id macros), `@`, `/` or `=` are dropped by the sanitizer, so use names or relax the rule deliberately.
+7. Add a landing variant ID if A/B tests are run.
+8. Decide on `guide_opened` (options above).
+
+*Verify on a deployed preview with the real provider, on phones and in the Facebook/Instagram in-app browsers*
+
+9. Before a choice and after „Odmítnout“: no request to the provider, and no cookie or storage written.
+10. After „Přijmout“: each funnel event arrives once with the documented properties. The provider's raw events contain no email, IP, request id or identifier, and the provider is configured not to store IPs or set ids.
+11. Withdrawal stops sending immediately.
+12. For a test period, reconcile `lead_email_accepted` (`delivery = resend`) against the server's `lead_sent` log, and ad clicks against `landing_view`.
+
+### Connecting a provider later (developer notes)
+1. Implement an `AnalyticsSink` (`send(event)`) in `src/analytics/`. It receives already-sanitized events (`{name, props, context}`) and only after consent.
+2. Register it in `src/main.tsx`.
+3. Build the consent interface and wire it to `tracker.setConsent`. Without it, the adapter receives nothing.
+4. If the transport or SDK needs `sendBeacon`, a new dependency or a script tag, change `privacy.test.ts` deliberately in the same change.
+
+The UI code does not change: components call `tracker.track(...)` / `trackOnce(...)` only.
+
+**Local development:** `npm run dev` registers a local debug receiver that keeps the last 200 events in page memory. Inspect them in the browser console with `window.__analyticsEvents`. Nothing is sent anywhere.
 
 ## 7. Main risks
 
@@ -375,8 +513,8 @@ Every metric should be splittable by UTM source, medium, campaign and content, b
 | Email flow | **Built in M3** (section 13): one email with exactly the promised content, failures visible and retryable, success only after Resend accepts. **Still open before launch:** a verified sender domain in Resend (SPF + DKIM), production credentials, `EMAIL_OPERATOR_LINE`, `ALLOWED_ORIGINS`, and a real-inbox delivery test (including spam placement) | Act 480/2004 § 7; Gmail sender requirements |
 | Abuse protection store | Rate limits and duplicate detection are in-memory per server instance. On serverless hosting they must move to a shared store (e.g. Redis/KV) before public launch. Duplicate emails are already prevented by Resend idempotency keys | Section 13 |
 | Email storage | Decided where addresses are stored, who can access them and for how long. Processor terms with the hosting/email provider checked | GDPR (needs compliance check) |
-| Analytics consent | No non-essential device storage or reading before consent. Refusing as easy as accepting. Funnel events contain no personal data | § 89(3) Act 127/2005; ÚOOÚ |
-| Funnel tracking | The section 6 events work end-to-end, including `lead_success` server-side, and are split by UTM and variant | Assignment requirement |
+| Analytics consent | No non-essential device storage or reading before consent. Refusing as easy as accepting. Funnel events contain no personal data. **Built:** events without personal data, a consent gate that every adapter passes through (default: nothing sent, no replay). **Open:** whether the chosen provider needs consent, and if so the consent interface with withdrawal (section 6, Privacy and consent) | § 89(3) Act 127/2005; ÚOOÚ |
+| Funnel tracking | **Built in M4** (section 6): the funnel events fire with UTM, device and in-app context; `lead_email_accepted` only after Resend accepted the email (not inbox delivery). **Open:** everything under section 6 "Implemented now vs. required before advertising": provider, consent decision and interface, conversion-rate basis under consent, verification on real devices, variant ID, `guide_opened` | Assignment requirement |
 | Source attribution | Every figure on the page and in the email shows its source and "as of" date. A methods/assumptions section exists. All figures are derived from `etf-data.json` through one shared calculation; no hard-coded or duplicated figures (Implementation 5) | Research rules; assignment ("cite the source") |
 | Data refresh | TER, distributions, NAV, the XTB fee and the ČNB rate re-pulled within days of launch; ČNB rate date displayed | Research F |
 | Copy guardrails | Promise and card follow section 2 and 3a rules: no total, no ranking between lines, no "N years" line, *daň* not *poplatek*, *může* not *platíte*, neutral default, no buy or broker links, no forecasts | Research B0, B4, G4 |
@@ -385,7 +523,7 @@ Every metric should be splittable by UTM source, medium, campaign and content, b
 
 ### Later (not launch-blocking)
 
-- Email open/click tracking.
+- Email open/click tracking (see `guide_opened`, section 6).
 - DMARC. Gmail requires it only at 5,000+ messages a day. One-click unsubscribe applies to marketing emails, which the prototype doesn't send.
 - PDF version of the comparison.
 - Number of holdings and ISINs (after checking against fact sheets).
@@ -415,7 +553,7 @@ Every metric should be splittable by UTM source, medium, campaign and content, b
 |---|---|---|
 | Card time frame | **1-year view only** | Simple card. Recurring lines carry the note "every year you hold it" so they don't look minor next to the one-off conversion. Multi-year view stays under "Later" |
 | Conversion example | **Adjustable model rate** (0–1%, default 0.5%); XTB named only in the methodology | No broker name on the card. One extra control. Users can enter their own broker's rate |
-| Analytics | **Minimal, provider-agnostic** event layer (section 6 events, plus `rate_change`). Events go into a local queue and are **sent nowhere** until a provider and consent approach are chosen. We don't assume consent is unnecessary | The prototype can be clicked through and instrumented without committing to a tool. The wireframe reserves a slot for a consent banner in case one is needed |
+| Analytics | **Minimal, provider-agnostic** event layer (section 6 events, plus `rate_change`, now `conversion_rate_changed`; built in M4). Events go into a local queue and are **sent nowhere** until a provider and consent approach are chosen. We don't assume consent is unnecessary | The prototype can be clicked through and instrumented without committing to a tool. The wireframe reserves a slot for a consent banner in case one is needed |
 | Email delivery | **Sent immediately after submit; no double opt-in; no marketing** | Fastest path to value. A mistyped address gets one email. Privacy notice and launch requirements stay as in section 8 |
 
 ### 9c. Decisions that can wait until after the wireframe (but must be resolved before public launch)
@@ -437,6 +575,7 @@ Every metric should be splittable by UTM source, medium, campaign and content, b
 **4. Analytics tool and consent approach**
 - A consent banner with standard analytics, or a setup that stores nothing on the device.
 - Whether a given tool needs consent under § 89(3) is a compliance question (section 8).
+- The requirements for either path and the remaining decisions are listed in section 6, "Privacy and consent".
 
 **5. Who does the legal review and when**
 - Required before public launch (section 8).
@@ -455,11 +594,11 @@ Every metric should be splittable by UTM source, medium, campaign and content, b
 7. **Sources, method and disclaimers:** data dates, assumptions, "not investment or tax advice", operator details (pending).
 
 **Sticky bottom CTA (mobile)**: a proposed interaction, specified here and shown as a static frame (ST1) in the wireframe.
-- **Appears** only after `result_view`, and only once the visitor has scrolled past the three cost lines, so it never overlaps the card while it's being read.
+- **Appears** only after `result_viewed`, and only once the visitor has scrolled past the three cost lines, so it never overlaps the card while it's being read.
 - **Tap** scrolls to the inline form (S3) and focuses the email field (`cta_click` {position: sticky}).
 - **Hidden** while S3 or S6 is in the viewport, while an input has focus (keyboard open), and while a consent banner is showing.
 - **Doesn't cover content:** one line, at most about 56 px plus the safe-area inset. The page adds equal bottom padding. No overlay, no focus trap.
-- **Disappears permanently** after `lead_success`.
+- **Disappears permanently** after `lead_email_accepted`.
 
 **Why this order**
 - **1–2 come first** because ad visitors stay only a few seconds. The first screen has to continue the ad's promise and *deliver* it at once. A pre-filled result means value arrives before any typing or scrolling.
@@ -511,10 +650,11 @@ These are implementation-level choices made so the build can start. None of them
   - Until a provider and domain are chosen, only a development adapter exists (logs or uses a local test inbox).
   - Addresses aren't stored beyond the send until a retention period is decided.
   - Returns success or a typed error; the page shows the confirmation only on confirmed success.
-- **Analytics:**
-  - `track(event, props)` puts section 6 events into an in-memory queue;
-  - a provider adapter is a no-op by default and sits behind a consent gate;
-  - no personal data in events; no cookies or device storage until the consent approach is decided.
+- **Analytics** (as built in M4, `src/analytics/`):
+  - `events.ts`: the event catalogue, buckets and a runtime allow-list that strips anything not in the schema;
+  - `tracker.ts`: `track` / `trackOnce`, sinks (adapters) and the consent gate every adapter passes through;
+  - `context.ts`: UTM, device class and in-app flag; `leadFunnel.ts`: the lead-flow event rules; `dwell.ts` + `hooks.ts` + `react.tsx`: the "seen" rule and React bindings;
+  - no receiver in production builds; no cookies, device storage or identifiers.
 - **Tests:**
   - unit tests (Vitest) for calc and format;
   - end-to-end tests (Playwright) at 360/375/390 px widths, with the lead API mocked for success and failure.
@@ -538,8 +678,9 @@ These are implementation-level choices made so the build can start. None of them
    - a Resend adapter (official SDK, HTTPS API) and a mock adapter (default);
    - the email rendered from the shared modules;
    - loading / success / error / "already sent" / "pošlete znovu" states.
-4. **M4, hardening:** performance budget, the real-device QA list, data-refresh procedure (a re-pull checklist that updates `etf-data.json` and its dates).
-5. **M5, public launch:** only after every section 8 blocker is closed. These are external: legal review, operator, privacy notice, email provider and domain, analytics and consent.
+4. **M4, funnel analytics** — ✅ built locally 2026-10-09 (section 6): provider-independent event layer, the funnel events wired into the page and both forms, consent gate, privacy guard tests. Disabled: no provider, nothing sent.
+5. **M5, hardening:** performance budget, the real-device QA list, data-refresh procedure (a re-pull checklist that updates `etf-data.json` and its dates).
+6. **M6, public launch:** only after every section 8 blocker is closed. These are external: legal review, operator, privacy notice, email provider and domain, analytics and consent.
 
 ### Acceptance criteria (prototype build)
 - **Figures**
@@ -562,7 +703,7 @@ These are implementation-level choices made so the build can start. None of them
   - "pošlete znovu" (send again) reopens the form with the address kept.
   - The email address never appears in analytics payloads or URLs.
 - **Copy guardrails:** no total, no ranking, no "N years" line, *daň* (tax) not *poplatek* (fee) for the withholding line, disclaimers and methodology present, sources and dates rendered from the data.
-- **Analytics:** every section 6 event fires with the specified properties into the queue; nothing leaves the browser without a configured provider and consent decision.
+- **Analytics:** every implemented section 6 event fires by its definition with only the allow-listed properties; `lead_email_accepted` never fires for an unconfirmed or failed send and is never reported as inbox delivery; nothing leaves the browser without a configured provider and consent decision.
 - **Basics:**
   - no console errors;
   - no layout shift when a fund is switched;
@@ -641,7 +782,7 @@ Deliberate differences from the references: no pills, no soft blob cards, square
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # Vitest (179 tests): data, F3 figures, rounding, comparison, validation, lead endpoint, providers, email content
+npm test           # Vitest (239 tests): data, F3 figures, rounding, comparison, validation, lead endpoint, providers, email content, analytics
 npm run typecheck  # tsc -b (app, tests, config)
 npm run build      # type-check + production build to dist/
 npm run lint       # oxlint

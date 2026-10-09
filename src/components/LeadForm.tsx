@@ -1,4 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { LeadFunnel, type LeadSelection } from '../analytics/leadFunnel'
+import { useSeenOnce, useTracker } from '../analytics/hooks'
 import { lead as copy } from '../content/cs'
 import { newRequestId, submitLead, type DeliveryMode, type LeadErrorCode } from '../lead/client'
 import { isValidEmail, normalizeEmail } from '../lead/validation'
@@ -51,6 +53,19 @@ export function LeadForm(props: Props) {
   useEffect(() => {
     if (isOwnSuccess) confirmationRef.current?.focus()
   }, [isOwnSuccess])
+
+  // Funnel events (README §6). The form counts as viewed only while the form itself is shown,
+  // not the confirmation or the "already sent" line.
+  const tracker = useTracker()
+  const funnel = useMemo(() => new LeadFunnel(tracker), [tracker])
+  const formRef = useRef<HTMLDivElement>(null)
+  const showsForm = !(sentElsewhere && !reopened) && !(isOwnSuccess && sent)
+  const markViewed = () => tracker.trackOnce(`lead_form_viewed:${position}`, 'lead_form_viewed', { position })
+  useSeenOnce(formRef, markViewed, showsForm)
+  const markStarted = () => {
+    markViewed() // focusing the field implies the form was seen, even within the 1 s dwell
+    tracker.trackOnce(`lead_form_started:${position}`, 'lead_form_started', { position })
+  }
 
   if (sentElsewhere && !reopened) {
     return <p className="text-[14px] leading-snug text-ink-2">{copy.alreadySent(sent.email)}</p>
@@ -126,6 +141,7 @@ export function LeadForm(props: Props) {
     if (inFlight.current) return // repeated clicks while a request is in flight are ignored
     const value = normalizeEmail(email)
     if (!isValidEmail(value)) {
+      funnel.invalidEmail(position)
       setStatus({ kind: 'error', code: 'invalid_email_client' })
       inputRef.current?.focus()
       return
@@ -135,15 +151,19 @@ export function LeadForm(props: Props) {
     inFlight.current = true
     setStatus({ kind: 'submitting' })
     const honeypot = (document.getElementById(`${id}-company`) as HTMLInputElement | null)?.value ?? ''
+    const requestId = intent.current.requestId
+    const selection: LeadSelection = { position, ticker: props.ticker, amountCzk: props.amountCzk, conversionRatePct: props.conversionRatePct }
+    funnel.submitted(requestId, selection)
     const outcome = await submitLead({
       email: value,
       ticker: props.ticker,
       amountCzk: props.amountCzk,
       conversionRatePct: props.conversionRatePct,
-      requestId: intent.current.requestId,
+      requestId,
       company: honeypot,
     })
     inFlight.current = false
+    funnel.outcome(requestId, selection, outcome)
     if (outcome.status === 'sent') {
       setStatus({ kind: 'idle' })
       setReopened(false)
@@ -155,7 +175,7 @@ export function LeadForm(props: Props) {
 
   const isInline = position === 'inline'
   return (
-    <div className={isInline ? 'lg:grid lg:grid-cols-12 lg:gap-10' : ''}>
+    <div ref={formRef} className={isInline ? 'lg:grid lg:grid-cols-12 lg:gap-10' : ''}>
       {isInline ? (
         <div className="lg:col-span-5">
           <h2 id={`${id}-title`} className="text-[1.375rem] font-semibold leading-tight tracking-[-0.025em] lg:text-[1.75rem]">
@@ -204,6 +224,7 @@ export function LeadForm(props: Props) {
             disabled={submitting}
             aria-invalid={isFieldError}
             aria-describedby={errorText ? `${id}-error` : `${id}-micro`}
+            onFocus={markStarted}
             onChange={(e) => {
               setEmail(e.target.value)
               if (isFieldError) setStatus({ kind: 'idle' })
