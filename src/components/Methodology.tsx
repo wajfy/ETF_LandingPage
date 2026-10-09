@@ -1,7 +1,8 @@
-import { methodology as m } from '../content/cs'
+import { methodology as m, sections } from '../content/cs'
 import { etfData } from '../domain/etfData'
 import { formatDateCz } from '../domain/format'
 import { parseWindow } from '../domain/result'
+import { Section } from './Section'
 
 /** Methodology, sources and disclaimer – every assumption on the card is explained here. */
 export function Methodology() {
@@ -24,16 +25,13 @@ export function Methodology() {
     ],
     [m.labels.notIncluded, m.items.notIncluded],
     [m.labels.rounding, m.items.rounding],
+    [m.labels.comparison, m.items.comparison],
     [m.labels.fx, m.items.fx(usdCzk, formatDateCz(fx.date))],
   ]
 
   return (
-    <section id="metodika" aria-labelledby="metodika-title" className="scroll-mt-6 border-t border-ink pt-8 lg:grid lg:grid-cols-12 lg:gap-10 lg:pt-12">
-      <h2 id="metodika-title" className="font-serif text-[2rem] italic leading-[1.05] tracking-[-0.01em] lg:col-span-4 lg:text-[2.75rem]">
-        {m.title}
-      </h2>
-
-      <div className="mt-6 lg:col-span-8 lg:mt-0">
+    <Section id="metodika" number={sections.methodology.number} label={sections.methodology.label} title={m.title}>
+      <div>
         <p className="text-[15px] leading-relaxed text-ink">{m.items.independent}</p>
         <dl className="mt-6 divide-y divide-line border-y border-line">
           {rows.map(([label, text]) => (
@@ -71,6 +69,6 @@ export function Methodology() {
           <strong className="font-semibold">{m.importantLabel}:</strong> {m.important}
         </p>
       </div>
-    </section>
+    </Section>
   )
 }

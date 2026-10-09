@@ -36,18 +36,23 @@ export function ResultCard({ result, amount, onAmountChange, rate, onRateChange,
   return (
     <article aria-labelledby="result-title" className="overflow-hidden rounded-md border border-line bg-surface">
       <header className="px-4 pt-4 sm:px-6 sm:pt-6">
-        <h2 id="result-title" className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+        <h2 id="result-title" tabIndex={-1} className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 outline-offset-4">
           <span className="text-[1.75rem] font-semibold leading-none tracking-[-0.025em]">{result.ticker}</span>
           <span className="text-sm text-ink-2">{result.name}</span>
         </h2>
         <p className="mt-2 text-sm leading-snug text-ink-2">{result.description}</p>
         {showDefaultRule && <p className="mt-1 text-xs text-ink-3">{card.defaultRule}</p>}
 
-        <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5 pb-4 text-[15px] font-semibold leading-relaxed">
-          <span>{card.amountLead}</span>
-          <AmountControl value={amount} onChange={onAmountChange} />
-          <span className="font-normal text-ink-3">{card.amountTail}</span>
-        </p>
+        <div className="mt-3 pb-3.5">
+          <p className="text-[15px] font-semibold leading-snug">{card.amountLead}</p>
+          <div className="mt-1">
+            <AmountControl
+              value={amount}
+              onChange={onAmountChange}
+              suffix={<span className="font-mono text-label uppercase text-ink-3">{card.amountTail}</span>}
+            />
+          </div>
+        </div>
       </header>
 
       <CostLine name={card.fee.name} sub={result.fee.sub} value={result.fee.value} unit={card.fee.unit}>
@@ -55,11 +60,11 @@ export function ResultCard({ result, amount, onAmountChange, rate, onRateChange,
       </CostLine>
 
       <CostLine name={card.conversion.name} sub={result.conversion.sub} value={result.conversion.value} unit={card.conversion.unit}>
-        <p className="mt-2 text-[13.5px] leading-snug text-ink-2">{card.conversion.note}</p>
+        {/* The control sits directly under the figure it changes. */}
         <div className="mt-3">
-          <label htmlFor="rate" className="flex items-baseline justify-between text-[13px] text-ink-2">
-            <span>{card.conversion.sliderLabel}</span>
-            <span className="font-semibold text-ink">{result.conversion.rateText}</span>
+          <label htmlFor="rate" className="flex items-baseline justify-between gap-3">
+            <span className="text-[13px] text-ink-2">{card.conversion.sliderLabel}</span>
+            <span className="text-[15px] font-semibold text-ink">{result.conversion.rateText}</span>
           </label>
           <input
             id="rate"
@@ -72,16 +77,29 @@ export function ResultCard({ result, amount, onAmountChange, rate, onRateChange,
             aria-valuetext={`${result.conversion.rateText}, směna ${result.conversion.value}`}
             onChange={(e) => onRateChange(Number(e.target.value))}
           />
-          <div className="-mt-1 flex justify-between font-mono text-label uppercase text-ink-3">
+          <div aria-hidden="true" className="-mt-2 flex justify-between font-mono text-label text-ink-3">
             <span>0 %</span>
-            <span>{card.conversion.sliderCaption}</span>
             <span>1 %</span>
           </div>
         </div>
+        <p className="mt-3 text-[13.5px] leading-snug text-ink-2">{card.conversion.note}</p>
       </CostLine>
 
       <CostLine name={card.tax.name} sub={card.tax.sub} value={result.tax.value} unit={card.tax.unit}>
-        <p className="mt-2 text-[13.5px] leading-snug text-ink-2">{result.tax.note}</p>
+        <p className="mt-2 text-[13.5px] leading-snug text-ink-2">{result.tax.summary}</p>
+        <details className="group mt-2">
+          <summary className="inline-flex cursor-pointer list-none items-baseline gap-1.5 text-[13px] font-medium text-accent underline decoration-1 underline-offset-2 [&::-webkit-details-marker]:hidden">
+            {card.tax.detailToggle}
+            <span aria-hidden="true" className="font-mono no-underline group-open:hidden">+</span>
+            <span aria-hidden="true" className="hidden font-mono no-underline group-open:inline">−</span>
+          </summary>
+          <p className="mt-2 text-[13.5px] leading-snug text-ink-2">
+            {result.tax.detail}{' '}
+            <a href="#metodika" className="whitespace-nowrap font-medium text-accent underline underline-offset-2">
+              {card.tax.detailMethodLink}
+            </a>
+          </p>
+        </details>
       </CostLine>
 
       <footer className="border-t border-line px-4 pb-5 pt-4 sm:px-6">

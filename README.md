@@ -1,6 +1,6 @@
 # ETF reality check — product brief
 
-**Status:** Wireframe phase **closed** 2026-10-09. **M1 built locally** (section 10): hero and interactive result card for all 7 funds, shared calculation and formatting, tests. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html). No production code written yet.
+**Status:** Wireframe phase **closed** 2026-10-09. **M1 and M2 built locally** (section 10): hero and interactive result card; comparison of all 7 funds; explanatory chapters; checklist; methodology. Shared calculation and formatting; tests. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html). No production code written yet.
 **Scope:** a landing page for Czech retail investors arriving from mobile ads. It explains the differences, the costs and the practical restrictions of seven US-listed ETFs, and collects an email in exchange for the full comparison and a checklist.
 
 The brief uses only claims supported by [research/](research/README.md). References like *(A1)* or *(F2)* point to sections of [research/claims-verification.md](research/claims-verification.md). Fund data comes from [research/etf-data.json](research/etf-data.json).
@@ -160,7 +160,10 @@ Draft Czech headline (revised 2026-10-09):
 - **No "conversion = N years of fees" line.** It mixes units and implies conversion matters more (B4, removed 2026-10-09).
 - Lines are shown **in the same order and with the same visual weight for every fund**. Neither the layout nor the copy may suggest which line "matters most".
 - The withholding line is labelled *daň* (tax), never *poplatek* (fee).
-- **Dividend-tax wording** (agreed 2026-10-09). The line is subtitled *„historický příklad“* (historical example). Its note says, in this order:
+- **Dividend-tax wording** (agreed 2026-10-09; split for scannability on 2026-10-09, M1 refinement). The line is subtitled *„historický příklad“* (historical example).
+  - The **visible summary** keeps caveats 1–5 below in short form.
+  - A native disclosure *„Jak příklad počítáme“* ("How we calculate the example") holds the secondary detail: the 15 % CZK figure restated in a sentence, how Czech taxation and the credit depend on the visitor's situation, and a link to the methodology.
+  - The caveats, in order:
   1. *„Zjednodušený příklad podle minulosti, ne předpověď“* (a simplified example based on the past, not a forecast);
   2. the historical yield, displayed to 2 decimal places (*„přibližně 1,04 % své hodnoty“*, about 1.04% of its value), and the assumption: same payouts again, 15% with W-8BEN, with the approximate CZK figure stated in the same sentence;
   3. the 30% case without W-8BEN;
@@ -479,8 +482,11 @@ These are implementation-level choices made so the build can start. None of them
   - `src/domain/calc.ts`: full-precision calculations, no rounding.
   - `src/domain/format.ts`: display rounding and Czech formatting (the only place rounding happens).
   - `src/domain/result.ts`: a framework-free result model that combines data, calculation, formatting and copy. The page uses it now; the email renderer should use it later.
+  - `src/domain/comparison.ts` (M2): the 7-fund comparison model from the same calc and format functions. Groups (same index / other index), the fee gap, the TER range, the conversion stated once, and an "all funds distribute" check from the data.
   - `src/content/cs.ts`: all Czech copy from the wireframe; figures are interpolated, never typed.
-  - `src/components/*`: `EtfPicker`, `AmountControl`, `ResultCard`, `Methodology`.
+  - `src/components/*`:
+    - M1: `EtfPicker`, `AmountControl`, `ResultCard`, `Methodology`.
+    - M2: `Section` (the shared editorial frame), `Comparison`, `Explainers`, `Checklist`.
   - `src/App.tsx`: page shell and state.
 - **Data, the single source:** `research/etf-data.json` is imported at build time.
   - A build-time check fails the build if required fields are missing (TER, TER date, distributions + NAV or issuer yield, index, inception) or if the data date is missing.
@@ -518,7 +524,13 @@ These are implementation-level choices made so the build can start. None of them
    - `calc.ts` + `format.ts` with golden tests;
    - render the hero (S1) and the card (S2) for all 7 funds, with the ETF chips, amount selector and rate slider;
    - deploy a preview.
-2. **M2, the rest of the page:** S3–S7, final copy, explainers, overview, methodology, the sticky CTA as specified, accessibility basics, the analytics queue.
+2. **M2, the rest of the page** — ✅ built locally 2026-10-09:
+   - the comparison of all 7 funds (S4);
+   - explanatory chapters (S5) on the fund fee, conversion, US dividend tax, KID and Czech sale tax;
+   - the checklist (S6);
+   - the methodology (S7) on the shared section frame.
+
+   Moved to M3 (as agreed): the inline and second email forms, the sticky CTA and the analytics queue.
 3. **M3, lead flow:** `/api/lead`, the email template from shared modules, the development sending adapter, real confirmation / error / "already sent" states, the honeypot and rate limit.
 4. **M4, hardening:** performance budget, the real-device QA list, data-refresh procedure (a re-pull checklist that updates `etf-data.json` and its dates).
 5. **M5, public launch:** only after every section 8 blocker is closed. These are external: legal review, operator, privacy notice, email provider and domain, analytics and consent.
@@ -580,10 +592,10 @@ Deliberate differences from the references: no pills, no soft blob cards, square
 | Colour: paper / surface / tint | `#f5f4f0` / `#ffffff` / `#ecebe5` | Warm-neutral page; white result panel; quiet info boxes (KID, disclaimer) |
 | Colour: ink / ink-2 / ink-3 | `#111218` / `#3f4150` / `#656877` | Text hierarchy. ink-3 ≈ 4.9:1 on paper (WCAG AA) |
 | Colour: line | `#dcdad2` | Hairlines between statement rows |
-| Colour: accent / accent-strong / accent-tint | `#2a3bd6` / `#1c299f` / `#e7e9fb` | Selected ticker, slider thumb, links, desktop backdrop block. White on accent ≈ 7:1 |
+| Colour: accent / accent-strong / accent-tint | `#2a3bd6` / `#1c299f` / `#e7e9fb` | Selected ticker, slider thumb, links, and on desktop a flat cobalt slab offset 16 px behind the card (visible as a right and bottom edge, about 75 % less cobalt than the earlier full frame). White on accent ≈ 7:1 |
 | Colour: error | `#b3261e` | Invalid input only |
 | Type: sans | Schibsted Grotesk (variable) | Headline, UI, figures. Tabular figures **only for whole-number values**: in this face, tabular spacing also widens the decimal comma |
-| Type: serif accent | Instrument Serif italic | The second line of the H1 and the methodology heading; nowhere else |
+| Type: serif accent | Instrument Serif italic | The second line of the H1 and the section headings (02–05); nowhere else |
 | Type: mono | IBM Plex Mono | Tickers, eyebrows, units (*ročně*, *jednorázově*), fact tags |
 | Type scale | display 36 px (clamped down below 390 px; 68 px desktop) · figure 26 px · body 16 · notes 13.5 · labels 11 px mono uppercase | Display tracking −0.035em |
 | Spacing | Tailwind 4 px scale; 16 px mobile gutters, 24 tablet, 40 desktop | — |
@@ -592,15 +604,38 @@ Deliberate differences from the references: no pills, no soft blob cards, square
 
 **Layout**
 - **Mobile:** single column. The first screen holds the eyebrow, the two-line headline, the lead, a 7-cell ticker strip in one row, and the top of the card with the first cost figure.
-- **Desktop (≥ 1024 px):** 12 columns. Headline and picker on the left (5 columns); the card on a flat cobalt block on the right (7 columns). Methodology in an editorial 4 + 8 split.
-- **Motion:** colour transitions on the ticker cells only.
+- **Desktop (≥ 1024 px):** 12 columns.
+  - Headline and picker on the left (5 columns). The column is sticky, so the picker stays in view while the longer card scrolls; the eyebrow aligns with the card's top edge.
+  - The card on the right (7 columns), with the offset cobalt slab behind it.
+  - Methodology in an editorial 4 + 8 split.
+- **Controls set as typography, not boxes:**
+  - The amount is an underlined 20 px figure, with the mono „(orientačně, 1 rok)“ label on the same baseline.
+  - The conversion slider sits directly under the figure it changes, with only its 0 % / 1 % end labels.
+  - Custom amounts use the same underlined style.
+- **Page rhythm (M2):** every section after the hero uses one frame (`Section`):
+  - an ink rule, a mono running head („02 · Srovnání“), a serif italic heading;
+  - on desktop, the heading sits in a sticky 4-column margin beside 8 columns of content.
+  - Inside sections: hairline-separated rows and numbered chapters instead of cards.
+- **Comparison layout** (revised 2026-10-09):
+  - **Below 1024 px:** one row per fund, never a squeezed table. Reading order: ticker + full name (with „v kartě“ or „Prověřit ↑“ on the right), then four labelled figures.
+    - Below 768 px the figures sit in two columns that mirror the table groups: fund fee (TER, fee per year) | dividends (12-month yield, dividend tax 15 %). The right column is wider (2 : 3) so every label stays on one line down to 320 px.
+    - From 768 px all four sit on one line.
+    - Secondary detail: the provider is not repeated (it's in every fund name). The index is shown only for the „Jiný index“ group; the S&P 500 group names its index in the group text.
+  - **From 1024 px:** a full-width table (the section uses the wide frame: heading above, table across 12 columns).
+    - Grouped headers: „Poplatek fondu“ over TER and fee per year, „Dividendy a daň v USA“ over yield and tax, separated by a hairline.
+    - Each column has a short label plus a note (*ročně* · *v Kč, pro {částka}* · *za 12 měsíců, historicky* · *15 %, ročně, přibližně*). Numbers are right-aligned; CZK figures semibold.
+  - **Selected fund:** the same treatment on rows and table (light cobalt tint + 2 px cobalt left rule + „v kartě“).
+  - **The fee-gap sentence names its funds:** „Fondy IVV, SPY, SPYM a VOO sledují stejný index S&P 500…“, with the tickers taken from the data.
+  - **The footnote keeps both caveats:** conversion is identical for all funds and shown separately, and the dividend figures are historical and approximate.
+- **Selection:** the fund shown in the card is marked „v kartě“ and with a 2 px cobalt rule. „Prověřit ↑“ selects a fund, scrolls back to the card (instantly if reduced motion is preferred) and moves focus to the card heading.
+- **Motion:** colour transitions on the ticker cells, and smooth scrolling for „Prověřit“ unless reduced motion is preferred.
 
 ## 12. Running locally
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # Vitest: data validation, F3 reference figures, rounding, single-source guard
+npm test           # Vitest (67 tests): data validation, F3 reference figures, rounding, card/comparison consistency, single-source guard
 npm run typecheck  # tsc -b (app, tests, config)
 npm run build      # type-check + production build to dist/
 npm run lint       # oxlint

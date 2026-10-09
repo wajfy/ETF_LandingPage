@@ -15,7 +15,7 @@ export interface ResultModel {
   amountText: string
   fee: { sub: string; value: string }
   conversion: { sub: string; value: string; rateText: string }
-  tax: { value: string; note: string }
+  tax: { value: string; summary: string; detail: string }
   facts: string[]
   stamp: string
   /** Unrounded figures, for consumers that need them (tests, email). */
@@ -61,7 +61,8 @@ export function buildResult(fund: Fund, amountCzk: number, conversionRatePct: nu
     },
     tax: {
       value: tax15,
-      note: card.tax.note(formatYield(lines.yieldPct), tax15, formatCzkEstimate(lines.dividendTaxDefault)),
+      summary: card.tax.summary(formatYield(lines.yieldPct), formatCzkEstimate(lines.dividendTaxDefault)),
+      detail: card.tax.detail(tax15),
     },
     facts,
     stamp: card.stamp(terSourceText(fund), windowEnd ? formatDateCz(windowEnd) : '—'),
