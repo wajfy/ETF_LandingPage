@@ -129,6 +129,7 @@ export const methodology = {
 
 export const footer = {
   operatorPlaceholder: 'Provozovatel: doplní se před spuštěním (název, sídlo, IČO, kontakt).',
+  privacyPlaceholder: 'Zásady ochrany osobních údajů: doplní se před spuštěním.',
   dataAsOf: (date: string) => `Data k ${date}`,
 }
 
@@ -265,4 +266,73 @@ export const checklist = {
     body: 'Žádný z nich je automaticky nereinvestuje – dividendy dostáváte na účet.',
   }),
   adviser: 'Svou situaci ověřte s daňovým poradcem.',
+}
+
+/* ---------------------------------------------------------------- M3 lead forms + email ------ */
+
+/** Lead forms (wireframe S3 inline, S6 repeat, ST3 errors, ST4 confirmation). */
+export const lead = {
+  inline: {
+    title: 'Chcete to mít po ruce, až budete u brokera?',
+    intro: 'Pošleme vám e-mailem:',
+    bullets: (selection: string) => [
+      'srovnání všech 7 ETF vedle sebe, se zdroji,',
+      `vaši prověrku: ${selection},`,
+      'checklist před nákupem: dostupnost, směna, W-⁠8BEN, daně při prodeji.',
+    ],
+    submit: 'Poslat srovnání',
+  },
+  repeat: {
+    title: 'Pošleme vám checklist i srovnání všech 7 ETF e-mailem.',
+    submit: 'Poslat checklist a srovnání',
+  },
+  emailLabel: 'Váš e-mail',
+  emailPlaceholder: 'jmeno@email.cz',
+  micro: 'E-mail použijeme jen k odeslání tohoto srovnání. Žádný newsletter ani další zprávy.',
+  privacyLink: 'Jak nakládáme s údaji',
+  sending: 'Odesíláme…',
+  selection: (ticker: string, amount: string, rate: string) => `${ticker} · ${amount} · směna ${rate}`,
+  errors: {
+    invalidEmail: 'Tahle adresa nevypadá úplně správně. Zkontrolujte ji prosím.',
+    sendFailed: 'E-mail se nepodařilo odeslat. Zkuste to prosím znovu za chvíli.',
+    unconfirmed:
+      'Nepodařilo se ověřit, jestli e-mail odešel. Zkuste to prosím znovu – pokud už odešel, druhý vám nepošleme.',
+    rateLimited: 'Odesíláte příliš často. Zkuste to prosím později.',
+    unavailable: 'Odesílání je teď nedostupné. Zkuste to prosím později.',
+    retry: 'Zkusit znovu',
+  },
+  success: {
+    title: 'Hotovo ✓',
+    sentTo: 'Srovnání a checklist jsme poslali na',
+    notArrived: 'Nic nepřišlo? Mrkněte do složky Hromadné nebo Spam, případně',
+    resend: 'pošlete znovu',
+    checklistLead: 'Mezitím tady je checklist:',
+    backToTop: 'Prověřit další ETF ↑',
+    mockNotice:
+      'Testovací režim (mock): e-mail se ve skutečnosti neodeslal. Náhled zprávy najdete na /api/dev/outbox.',
+  },
+  alreadySent: (email: string) => `✓ Srovnání a checklist už jste si nechali poslat na ${email}.`,
+}
+
+/** The delivered email (wireframe ST5). Same figures, rounding and caveats as the page. */
+export const email = {
+  subject: 'Vaše prověrka ETF: srovnání 7 fondů a checklist',
+  preheader: (selection: string) => `${selection} – a všech 7 fondů vedle sebe.`,
+  heading: 'Vaše prověrka ETF',
+  intro: 'Posíláme srovnání a checklist, které jste si vyžádali. Čísla jsou spočítaná stejně jako na stránce.',
+  yourCheck: {
+    title: 'Vaše prověrka',
+    assumptions: (dataDate: string) =>
+      `Předpoklady: 1 rok, celá zadaná částka, bez zhodnocení, stálý kurz, modelová sazba směny, historický dividendový výnos, zaokrouhlení na tři platné číslice; data k ${dataDate}.`,
+  },
+  comparisonTitle: 'Srovnání 7 ETF',
+  comparisonNote:
+    'Daň z dividend je zjednodušený historický příklad, počítaný stejně jako na stránce; budoucí dividendy se mohou lišit. Pořadí je abecední, nejde o žebříček.',
+  checklistTitle: 'Checklist před prvním nákupem',
+  methodologyTitle: 'Jak počítáme a zdroje',
+  footer: {
+    requested: 'Tento e-mail jste si vyžádali na stránce Prověrka ETF. Další zprávy vám neposíláme.',
+    operatorPlaceholder: 'Provozovatel: doplní se před spuštěním (název, sídlo, IČO, kontakt).',
+    notAdvice: 'Nejde o nabídku investice, investiční doporučení ani daňové poradenství. Minulé údaje nezaručují budoucí výsledky.',
+  },
 }

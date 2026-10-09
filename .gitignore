@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files may hold credentials (RESEND_API_KEY). Only the example is committed.
+.env
+.env.*
+!.env.example
+
+# Vitest local cache
+.vitest/

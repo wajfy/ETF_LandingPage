@@ -1,43 +1,21 @@
 import { methodology as m, sections } from '../content/cs'
 import { etfData } from '../domain/etfData'
-import { formatDateCz } from '../domain/format'
-import { parseWindow } from '../domain/result'
+import { methodologyRows } from '../domain/methodology'
 import { Section } from './Section'
 
 /** Methodology, sources and disclaimer – every assumption on the card is explained here. */
 export function Methodology() {
-  const firstComputed = etfData.funds.find((f) => f.yieldSource.kind === 'distributions')
-  const window = parseWindow(firstComputed?.yieldSource.window)
-  const navDate = firstComputed?.yieldSource.navDate
   const fx = etfData.exchangeRate
-  const usdCzk = new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 3 }).format(fx.usdCzk)
-
-  const rows: Array<[string, string]> = [
-    [m.labels.fee, m.items.fee],
-    [m.labels.conversion, m.items.conversion],
-    [
-      m.labels.tax,
-      m.items.tax(
-        window ? formatDateCz(window[0]) : '—',
-        window ? formatDateCz(window[1]) : '—',
-        navDate ? formatDateCz(navDate) : '—',
-      ),
-    ],
-    [m.labels.notIncluded, m.items.notIncluded],
-    [m.labels.rounding, m.items.rounding],
-    [m.labels.comparison, m.items.comparison],
-    [m.labels.fx, m.items.fx(usdCzk, formatDateCz(fx.date))],
-  ]
 
   return (
     <Section id="metodika" number={sections.methodology.number} label={sections.methodology.label} title={m.title}>
       <div>
         <p className="text-[15px] leading-relaxed text-ink">{m.items.independent}</p>
         <dl className="mt-6 divide-y divide-line border-y border-line">
-          {rows.map(([label, text]) => (
-            <div key={label} className="grid gap-1 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">
-              <dt className="font-mono text-label uppercase text-ink-3 sm:pt-1">{label}</dt>
-              <dd className="text-[14.5px] leading-relaxed text-ink-2">{text}</dd>
+          {methodologyRows().map((row) => (
+            <div key={row.label} className="grid gap-1 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">
+              <dt className="font-mono text-label uppercase text-ink-3 sm:pt-1">{row.label}</dt>
+              <dd className="text-[14.5px] leading-relaxed text-ink-2">{row.text}</dd>
             </div>
           ))}
         </dl>

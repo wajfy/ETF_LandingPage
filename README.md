@@ -1,6 +1,6 @@
 # ETF reality check — product brief
 
-**Status:** Wireframe phase **closed** 2026-10-09. **M1 and M2 built locally** (section 10): hero and interactive result card; comparison of all 7 funds; explanatory chapters; checklist; methodology. Shared calculation and formatting; tests. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html). No production code written yet.
+**Status:** Wireframe phase **closed** 2026-10-09. **M1–M3 built locally** (section 10): hero and interactive result card; comparison of all 7 funds; explanatory chapters; checklist; methodology; both email forms with server-side delivery through Resend (mock by default, section 13). Shared calculation and formatting; tests. Nothing is deployed and no real email has been sent. Visual system: section 11. How to run: section 12. Wireframe with the final Czech copy: [wireframe/wireframe.html](wireframe/wireframe.html). No production code written yet.
 **Scope:** a landing page for Czech retail investors arriving from mobile ads. It explains the differences, the costs and the practical restrictions of seven US-listed ETFs, and collects an email in exchange for the full comparison and a checklist.
 
 The brief uses only claims supported by [research/](research/README.md). References like *(A1)* or *(F2)* point to sections of [research/claims-verification.md](research/claims-verification.md). Fund data comes from [research/etf-data.json](research/etf-data.json).
@@ -372,7 +372,8 @@ Every metric should be splittable by UTM source, medium, campaign and content, b
 | **Legal review** ⛔ | A documented answer from a qualified lawyer on: (1) whether the page is *„nabízení investic“* (offering investments) under ZISIF § 294 (G3.2); (2) the MAR investment-recommendation and ZPKT investment-advice boundary for the final copy (G3.3–4). **Our research isn't legal advice and doesn't replace this** | ZISIF §§ 294–297; ESMA 2024 warning; ZPKT § 2(1)(f) |
 | Operator identity | Name, registered office, IČO and registry entry (if any), and a contact email, visible on the page and in every email | Civil Code § 435(1); § 7(4)(b) Act 480/2004 |
 | Privacy notice | Controller identity and contact, purpose (only delivering the requested comparison), legal basis (to be set by compliance), recipients (hosting, email provider, analytics), retention period, transfers outside the EU (if a provider is outside the EU), rights including complaint to ÚOOÚ. Linked next to the form button | GDPR Art. 13 via ÚOOÚ (full article text to re-check) |
-| Email flow | Sends reliably within minutes. Contains exactly what the page promised and nothing promotional. Sender identity clear. Sent from a domain with SPF or DKIM. Failures visible to the user and retryable. One email only; no follow-ups | Act 480/2004 § 7; Gmail sender requirements |
+| Email flow | **Built in M3** (section 13): one email with exactly the promised content, failures visible and retryable, success only after Resend accepts. **Still open before launch:** a verified sender domain in Resend (SPF + DKIM), production credentials, `EMAIL_OPERATOR_LINE`, `ALLOWED_ORIGINS`, and a real-inbox delivery test (including spam placement) | Act 480/2004 § 7; Gmail sender requirements |
+| Abuse protection store | Rate limits and duplicate detection are in-memory per server instance. On serverless hosting they must move to a shared store (e.g. Redis/KV) before public launch. Duplicate emails are already prevented by Resend idempotency keys | Section 13 |
 | Email storage | Decided where addresses are stored, who can access them and for how long. Processor terms with the hosting/email provider checked | GDPR (needs compliance check) |
 | Analytics consent | No non-essential device storage or reading before consent. Refusing as easy as accepting. Funnel events contain no personal data | § 89(3) Act 127/2005; ÚOOÚ |
 | Funnel tracking | The section 6 events work end-to-end, including `lead_success` server-side, and are split by UTM and variant | Assignment requirement |
@@ -531,7 +532,12 @@ These are implementation-level choices made so the build can start. None of them
    - the methodology (S7) on the shared section frame.
 
    Moved to M3 (as agreed): the inline and second email forms, the sticky CTA and the analytics queue.
-3. **M3, lead flow:** `/api/lead`, the email template from shared modules, the development sending adapter, real confirmation / error / "already sent" states, the honeypot and rate limit.
+3. **M3, lead flow** — ✅ built locally 2026-10-09 (section 13):
+   - both forms (inline after the result, repeat after the checklist);
+   - `POST /api/lead` with validation, honeypot, origin check, per-IP and per-address limits and idempotent sends;
+   - a Resend adapter (official SDK, HTTPS API) and a mock adapter (default);
+   - the email rendered from the shared modules;
+   - loading / success / error / "already sent" / "pošlete znovu" states.
 4. **M4, hardening:** performance budget, the real-device QA list, data-refresh procedure (a re-pull checklist that updates `etf-data.json` and its dates).
 5. **M5, public launch:** only after every section 8 blocker is closed. These are external: legal review, operator, privacy notice, email provider and domain, analytics and consent.
 
@@ -635,8 +641,82 @@ Deliberate differences from the references: no pills, no soft blob cards, square
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # Vitest (67 tests): data validation, F3 reference figures, rounding, card/comparison consistency, single-source guard
+npm test           # Vitest (179 tests): data, F3 figures, rounding, comparison, validation, lead endpoint, providers, email content
 npm run typecheck  # tsc -b (app, tests, config)
 npm run build      # type-check + production build to dist/
 npm run lint       # oxlint
 ```
+
+**Email delivery locally:** `npm run dev` uses **mock delivery** by default. Submit a form, then open http://localhost:5173/api/dev/outbox to read the generated email; addresses are masked and nothing is stored on disk. See section 13 before configuring real delivery.
+
+---
+
+## 13. Email delivery (M3)
+
+### Code
+- `src/components/LeadForm.tsx`: the form and its states.
+- `src/lead/`: browser client and shared validation.
+- `src/email/leadEmail.ts`: the email, rendered from the same result, comparison, checklist and methodology modules as the page.
+- `server/`: configuration, providers, handler, stores, dev middleware.
+- `api/lead.ts`: the serverless entry for later deployment (not deployed).
+
+### How a send works
+1. The form validates the address in the browser (the same rules as the server) and sends `{email, ticker, amountCzk, conversionRatePct, requestId, company}`.
+   - `requestId` is one UUID per send intent: a retry of the same attempt reuses it; „pošlete znovu“ creates a new one.
+   - `company` is the hidden honeypot field.
+2. The server checks the method, the origin (if configured), the content type, the per-IP limit (10 requests / 10 min), the body size (4 KB) and the input.
+3. **Honeypot filled** → answers like a success and sends nothing.
+4. **Duplicates:**
+   - the same `requestId` already sent → the cached success, no second email;
+   - the same `requestId` in flight (double click) → shares the one send;
+   - the same `requestId` with a different payload → 409.
+5. **Per-address limit:** 3 new sends per address per 24 h. Only a salted SHA-256 hash of the address is kept (random salt per server instance), in memory.
+6. The email is rendered (deterministically) and passed to the provider with `Idempotency-Key: lead-<requestId>` and a 10 s timeout.
+7. The answer is **200 "sent" only after the provider accepted the email**:
+
+   | Provider result | Answer |
+   |---|---|
+   | Timeout or unknown failure | 504 "unconfirmed". A retry with the same `requestId` is safe: Resend returns the original send instead of sending again |
+   | Rejected | 502 |
+   | Quota or configuration problem | 503 |
+
+8. **Logs** contain the event type, mode, provider id and ticker. Never the email address or the IP.
+
+### Limits of the current abuse protection (not production-ready for multiple instances)
+- **The rate limits and the intent store live in the memory of one server process.** That is enough for the local dev server and a single long-running instance. It is **not sufficient for a multi-instance or serverless production deployment**: every instance (and every cold start) has its own empty copy, so the per-IP and per-address limits can be exceeded by a factor of the instance count, and they reset on redeploy. Before public launch they must move to a shared store (e.g. Redis/KV) — listed as a blocker in section 8.
+- **Duplicate emails do not depend on this memory.** Every send carries the Resend idempotency key `lead-<requestId>`, which Resend honours across instances (for 24 h). A retry of the same attempt landing on another instance therefore cannot send a second email.
+- **Concurrent sends to one address with different `requestId`s** (two tabs submitted at the same moment) can both pass the per-address check before either is counted. Acceptable at a limit of 3 / 24 h; a shared store with an atomic increment closes it.
+- **Client IP:** `api/lead.ts` takes the first `x-forwarded-for` entry, which Vercel sets itself. On a host that passes the header through from the client, it can be spoofed and the per-IP limit becomes advisory.
+- **Timeouts:** the provider timeout is 10 s (`EMAIL_PROVIDER_TIMEOUT_MS`, clamped to 1–30 s). The serverless function limit (`maxDuration = 25` in `api/lead.ts`) must stay above it, so the function answers „unconfirmed“ itself. If the platform still cuts the request off, the browser maps the gateway error or its own 20 s timeout to „unconfirmed“ too — never to success.
+
+### Mock mode (default)
+- **When:** `EMAIL_DELIVERY_MODE` unset (outside production) or `mock`. The server log says „delivery mode: MOCK“.
+- **What it does:** the mock provider never touches the network. It keeps the last 10 rendered emails in memory with masked recipients (`j***@e***.cz`); a restart clears them.
+- **Preview:** `GET /api/dev/outbox` lists them, and `/api/dev/outbox/<n>` shows the HTML (`?format=text` for plain text). The preview exists only in the Vite dev server (not in `vite preview`, the production build or the serverless entry), and it answers only requests from this machine (loopback), even if the dev server is started with `--host`.
+- **Not on the live site:** with `VERCEL_ENV=production` the mock mode is refused (503), so production visitors can never get a confirmation for an email that was not sent. Preview deployments may still use mock.
+- **Visible on the page:** the confirmation shows a „MOCK“ notice, so a mock send can't be mistaken for a real one.
+
+### Real delivery through Resend: what must be configured (not done; launch blockers)
+Server-side environment variables only; none is `VITE_`-prefixed, so they never reach the browser. Template: `.env.example`. `.env*` files are git-ignored.
+
+| Variable | Requirement |
+|---|---|
+| `EMAIL_DELIVERY_MODE=resend` | Explicit opt-in |
+| `EMAIL_DELIVERY_CONFIRM=send-real-emails` | Second, deliberate acknowledgement |
+| `RESEND_API_KEY` | A sending-only key from Resend (`re_…`). Production key stored only in the hosting provider's secret store |
+| `EMAIL_FROM` | An address on **your own domain verified in Resend** (SPF + DKIM). The `resend.dev` test sender is refused |
+| `EMAIL_REPLY_TO` | Optional |
+| `EMAIL_OPERATOR_LINE` | The operator identity printed in every email (blocked on the operator decision) |
+| `ALLOWED_ORIGINS` | The production origin(s), e.g. `https://vase-domena.cz` |
+
+If any of these is missing while `EMAIL_DELIVERY_MODE=resend`, the endpoint refuses to run (503). It never falls back to mock or pretends to send. In production the mode must be set explicitly.
+
+**Still open before the first real send:**
+- the legal review;
+- the privacy notice (the forms link to its placeholder in the footer);
+- the retention policy: today nothing is stored beyond in-memory hashes, and Resend keeps its own sending logs, which the privacy notice must mention;
+- the operator identity;
+- sender-domain verification;
+- production credentials;
+- a shared store for rate limits and the intent store on serverless or multi-instance hosting (see "Limits of the current abuse protection" above);
+- a real-inbox test.
